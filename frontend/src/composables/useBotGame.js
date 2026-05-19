@@ -1,14 +1,12 @@
 /**
  * useBotGame.js — Composable для игры против Stockfish бота.
- *
- * Полностью офлайн — WebSocket не нужен.
- * Бот делает ход через botWorker.js (WASM в отдельном потоке).
  */
 import { ref, computed, onUnmounted } from 'vue';
 import { Chess } from 'chess.js';
 import axios from '@/plugins/axios';
 
-// Уровни сложности с временем обдумывания
+const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#/stockfish/stockfish.wasm,worker';
+
 export const SKILL_CONFIGS = {
   0:  { label: '🐣 Новичок',   movetime: 100,  skillLevel: 0  },
   5:  { label: '🙂 Любитель',  movetime: 300,  skillLevel: 5  },
@@ -18,30 +16,39 @@ export const SKILL_CONFIGS = {
 };
 
 export function useBotGame() {
-  // ─── Состояние ─────────────────────────────────────────────────────────────
-  const chess        = ref(new Chess());
-  const fen          = ref(chess.value.fen());
-  const moves        = ref([]);        // { uci, san }[]
-  const lastMove     = ref(null);
-  const playerColor  = ref('white');   // игрок всегда выбирает цвет
-  const skillLevel   = ref(10);
-  const isMyTurn     = ref(true);
-  const isGameOver   = ref(false);
-  const result       = ref(null);      // 'white_win' | 'black_win' | 'draw'
-  const resultReason = ref(null);
+  const chess         = ref(new Chess());
+  const fen           = ref(chess.value.fen());
+  const moves         = ref([]);
+  const lastMove      = ref(null);
+  const playerColor   = ref('white');
+  const skillLevel    = ref(10);
+  const isMyTurn      = ref(true);
+  const isGameOver    = ref(false);
+  const result        = ref(null);
+  const resultReason  = ref(null);
   const isBotThinking = ref(false);
+  const engineError   = ref(null);
 
-  let botWorker = null;
-  let gameId    = null;  // ID партии в БД
+  let botWorker   = null;
+  let gameId      = null;
+  let engineReady = false;
+  let pendingBotMove = false;
 
-  // ─── Вычисляемые ───────────────────────────────────────────────────────────
-  const skillConfig  = computed(() => SKILL_CONFIGS[skillLevel.value] || SKILL_CONFIGS[10]);
-  const moveSans     = computed(() => moves.value.map(m => m.san));
-  const moveUcis     = computed(() => moves.value.map(m => m.uci));
-
-  // ─── Инициализация ─────────────────────────────────────────────────────────
+  const skillConfig = computed(() => SKILL_CONFIGS[skillLevel.value] || SKILL_CONFIGS[10]);
+  const moveSans    = computed(() => moves.value.map(m => m.san));
+  const moveUcis    = computed(() => moves.value.map(m => m.uci));
+  const turnLabel   = computed(() => {
+    if (isGameOver.value) return '';
+    if (isBotThinking.value) return 'Бот думает…';
+    return isMyTurn.value ? 'Ваш ход' : 'Ход бота';
+  });
 
   function startGame(color = 'white', skill = 10) {
+    cleanupWorker();
+    engineError.value = null;
+    engineReady = false;
+    pendingBotMove = false;
+
     playerColor.value = color;
     skillLevel.value = skill;
     chess.value = new Chess();
@@ -51,28 +58,71 @@ export function useBotGame() {
     isGameOver.value = false;
     result.value = null;
     resultReason.value = null;
-    isMyTurn.value = color === 'white'; // белые ходят первыми
+    isMyTurn.value = color === 'white';
+    isBotThinking.value = color === 'black';
 
-    // Создаём Web Worker (classic — importScripts для Stockfish)
-    botWorker = new Worker(new URL('@/workers/botWorker.js', import.meta.url), { type: 'classic' });
-    botWorker.onmessage = handleBotMessage;
-    botWorker.postMessage({ type: 'init', payload: { skillLevel: skill } });
+    botWorker = new Worker(STOCKFISH_WORKER_URL);
+    botWorker.onmessage = handleEngineLine;
+    botWorker.onerror = () => {
+      engineError.value = 'Не удалось загрузить движок Stockfish';
+      isBotThinking.value = false;
+    };
+    botWorker.postMessage('uci');
 
-    // Если играем за чёрных — бот ходит первым
     if (color === 'black') {
-      setTimeout(requestBotMove, 600);
+      pendingBotMove = true;
     }
 
-    // Создаём запись в БД
     createGameRecord();
   }
 
-  // ─── Ход игрока ────────────────────────────────────────────────────────────
+  function configureEngine(skill) {
+    botWorker?.postMessage(`setoption name Skill Level value ${skill}`);
+    if (skill < 5) {
+      botWorker?.postMessage('setoption name UCI_LimitStrength value true');
+      botWorker?.postMessage(`setoption name UCI_Elo value ${600 + skill * 100}`);
+    }
+    botWorker?.postMessage('setoption name Threads value 1');
+    botWorker?.postMessage('setoption name Hash value 32');
+    botWorker?.postMessage('isready');
+  }
 
-  function playerMove(from, to, promotion = 'q') {
+  function handleEngineLine(event) {
+    const line = typeof event.data === 'string' ? event.data : '';
+    if (!line) return;
+
+    if (line === 'uciok') {
+      configureEngine(skillLevel.value);
+      return;
+    }
+
+    if (line === 'readyok') {
+      engineReady = true;
+      if (pendingBotMove) {
+        pendingBotMove = false;
+        requestBotMove();
+      }
+      return;
+    }
+
+    if (line.startsWith('bestmove')) {
+      const uci = line.split(' ')[1];
+      if (!uci || uci === '(none)') {
+        isBotThinking.value = false;
+        engineError.value = 'Бот не смог найти ход';
+        return;
+      }
+      applyBotMove(uci);
+    }
+  }
+
+  function playerMove(from, to, promotion) {
     if (!isMyTurn.value || isGameOver.value) return false;
 
-    const moveObj = chess.value.move({ from, to, promotion });
+    const moveInput = { from, to };
+    if (promotion) moveInput.promotion = promotion;
+
+    const moveObj = chess.value.move(moveInput);
     if (!moveObj) return false;
 
     const uci = from + to + (moveObj.promotion || '');
@@ -82,40 +132,47 @@ export function useBotGame() {
     checkGameOver();
 
     if (!isGameOver.value) {
-      // Бот думает
-      isBotThinking.value = true;
       requestBotMove();
     }
 
     return true;
   }
 
-  // ─── Запрос хода у бота ────────────────────────────────────────────────────
-
   function requestBotMove() {
-    if (!botWorker || isGameOver.value) return;
-    botWorker.postMessage({
-      type: 'get_move',
-      payload: {
-        moves: moveUcis.value,
-        movetime: skillConfig.value.movetime,
-      },
-    });
+    if (!botWorker || isGameOver.value || isMyTurn.value) return;
+
+    if (!engineReady) {
+      pendingBotMove = true;
+      isBotThinking.value = true;
+      return;
+    }
+
+    isBotThinking.value = true;
+    engineError.value = null;
+
+    const history = moveUcis.value.join(' ');
+    botWorker.postMessage(
+      history ? `position startpos moves ${history}` : 'position startpos',
+    );
+    botWorker.postMessage(`go movetime ${skillConfig.value.movetime}`);
   }
 
-  function handleBotMessage(event) {
-    const { type, uci } = event.data;
-    if (type !== 'bot_move') return;
-
+  function applyBotMove(uci) {
     isBotThinking.value = false;
 
-    // Применяем ход бота
     const from = uci.slice(0, 2);
-    const to   = uci.slice(2, 4);
+    const to = uci.slice(2, 4);
     const promo = uci[4] || undefined;
 
-    const moveObj = chess.value.move({ from, to, promotion: promo });
-    if (!moveObj) return;
+    const moveInput = { from, to };
+    if (promo) moveInput.promotion = promo;
+
+    const moveObj = chess.value.move(moveInput);
+    if (!moveObj) {
+      engineError.value = 'Некорректный ход бота';
+      isMyTurn.value = true;
+      return;
+    }
 
     applyMove(uci, moveObj.san);
     isMyTurn.value = true;
@@ -123,21 +180,17 @@ export function useBotGame() {
     saveMoves();
   }
 
-  // ─── Применение хода (обновление состояния) ────────────────────────────────
-
   function applyMove(uci, san) {
     fen.value = chess.value.fen();
     lastMove.value = { from: uci.slice(0, 2), to: uci.slice(2, 4) };
     moves.value.push({ uci, san });
   }
 
-  // ─── Проверка конца партии ─────────────────────────────────────────────────
-
   function checkGameOver() {
     const c = chess.value;
     if (c.isCheckmate()) {
       isGameOver.value = true;
-      const winnersColor = c.turn() === 'w' ? 'black' : 'white'; // ходит проигравший
+      const winnersColor = c.turn() === 'w' ? 'black' : 'white';
       result.value = winnersColor === 'white' ? 'white_win' : 'black_win';
       resultReason.value = 'checkmate';
       finalizeGame();
@@ -167,8 +220,6 @@ export function useBotGame() {
     finalizeGame();
   }
 
-  // ─── Сохранение в БД ───────────────────────────────────────────────────────
-
   async function createGameRecord() {
     try {
       const { data } = await axios.post('/api/games/bot/create/', {
@@ -192,7 +243,8 @@ export function useBotGame() {
   }
 
   async function finalizeGame() {
-    botWorker?.postMessage({ type: 'stop' });
+    isBotThinking.value = false;
+    botWorker?.postMessage('stop');
     if (!gameId) return;
     try {
       await axios.patch(`/api/games/bot/${gameId}/`, {
@@ -204,21 +256,24 @@ export function useBotGame() {
     } catch {}
   }
 
-  // ─── Очистка ───────────────────────────────────────────────────────────────
-
-  function cleanup() {
+  function cleanupWorker() {
     botWorker?.terminate();
     botWorker = null;
+    engineReady = false;
+    pendingBotMove = false;
+  }
+
+  function cleanup() {
+    cleanupWorker();
   }
 
   onUnmounted(cleanup);
 
   return {
-    // State
     fen, moves, lastMove, moveUcis, moveSans,
     playerColor, skillLevel, skillConfig,
     isMyTurn, isGameOver, result, resultReason, isBotThinking,
-    // Actions
+    engineError, turnLabel,
     startGame, playerMove, resign, cleanup,
     SKILL_CONFIGS,
   };

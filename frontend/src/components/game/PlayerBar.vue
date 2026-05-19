@@ -14,7 +14,7 @@
     </div>
 
     <!-- Шахматные часы -->
-    <div class="clock" :class="clockClass" v-if="clock !== null">
+    <div class="clock" :class="clockClass">
       {{ formatClock(clock) }}
     </div>
   </div>
@@ -43,7 +43,8 @@ const clockClass = computed(() => {
 });
 
 function formatClock(ms) {
-  if (ms === null) return '--:--';
+  if (ms === null || ms === undefined) return '--:--';
+  if (ms === Infinity) return '∞';
   const totalSec = Math.ceil(ms / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;

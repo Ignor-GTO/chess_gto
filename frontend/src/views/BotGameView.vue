@@ -1,42 +1,40 @@
 <template>
-  <!-- Страница игры против бота (без WebSocket) -->
   <div class="game-view">
-    <!-- Соперник: бот -->
     <PlayerBar
       :name="botName"
       :rating="botRating"
-      :clock="botClock"
-      :is-active="!game.isMyTurn.value && !game.isGameOver.value"
+      :clock="Infinity"
+      :is-active="!isMyTurn && !isGameOver"
       :is-bot="true"
     />
 
-    <!-- Доска -->
+    <div v-if="!isGameOver" class="turn-indicator" :class="{ 'my-turn': isMyTurn }">
+      {{ turnLabel }}
+    </div>
+
     <ChessBoard
-      :fen="game.fen.value"
-      :player-color="game.playerColor.value"
-      :last-move="game.lastMove.value"
-      :is-my-turn="game.isMyTurn.value"
-      :disabled="game.isGameOver.value"
+      :fen="fen"
+      :player-color="playerColor"
+      :last-move="lastMove"
+      :is-my-turn="isMyTurn"
+      :disabled="isGameOver"
       @move="onPlayerMove"
     />
 
-    <!-- Мой таймер -->
     <PlayerBar
       :name="authStore.user?.username"
       :rating="authStore.user?.rating"
-      :clock="playerClock"
-      :is-active="game.isMyTurn.value"
+      :clock="Infinity"
+      :is-active="isMyTurn && !isGameOver"
       :is-me="true"
     />
 
-    <!-- Индикатор "Бот думает..." -->
-    <div v-if="game.isBotThinking.value" class="bot-thinking">
-      <span class="thinking-dots">🤖 Бот думает</span>
+    <div v-if="engineError" class="engine-error">
+      ⚠ {{ engineError }}
     </div>
 
-    <!-- Контролы -->
     <div class="game-controls">
-      <button @click="game.resign()" :disabled="game.isGameOver.value" class="btn-danger">
+      <button @click="resign()" :disabled="isGameOver" class="btn-danger">
         🏳 Сдаться
       </button>
       <button @click="newGame" class="btn-secondary">
@@ -44,12 +42,11 @@
       </button>
     </div>
 
-    <!-- Результат -->
     <GameResultModal
-      v-if="game.isGameOver.value"
-      :result="game.result.value"
-      :reason="game.resultReason.value"
-      :player-color="game.playerColor.value"
+      v-if="isGameOver"
+      :result="result"
+      :reason="resultReason"
+      :player-color="playerColor"
       :rating-change="null"
       @analyze="goToAnalysis"
       @new-game="newGame"
@@ -58,7 +55,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useBotGame } from '@/composables/useBotGame';
@@ -66,43 +63,43 @@ import ChessBoard from '@/components/board/ChessBoard.vue';
 import PlayerBar from '@/components/game/PlayerBar.vue';
 import GameResultModal from '@/components/game/GameResultModal.vue';
 
-const route     = useRoute();
-const router    = useRouter();
+const route  = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
-const game      = useBotGame();
 
-// Параметры из query: /game/bot?skill=10&color=white
+const {
+  fen, lastMove, playerColor, skillLevel, skillConfig,
+  isMyTurn, isGameOver, result, resultReason,
+  engineError, turnLabel, moveUcis,
+  startGame, playerMove, resign, cleanup,
+} = useBotGame();
+
 const skill = Number(route.query.skill ?? 10);
 const color = route.query.color || 'white';
 
-// Часы (бот без ограничения времени — только для отображения)
-const playerClock = ref(null);
-const botClock    = ref(null);
-
-// Информация о боте
-const botName   = computed(() => `🤖 Stockfish ${game.skillConfig.value.label}`);
+const botName = computed(() => `🤖 Stockfish ${skillConfig.value.label}`);
 const botRating = computed(() => {
   const ratings = { 0: 800, 5: 1200, 10: 1600, 15: 2000, 20: 2500 };
-  return ratings[game.skillLevel.value] || 1500;
+  return ratings[skillLevel.value] || 1500;
 });
 
 onMounted(() => {
-  game.startGame(color, skill);
+  startGame(color, skill);
 });
 
 function onPlayerMove({ from, to, promotion }) {
-  game.playerMove(from, to, promotion);
+  playerMove(from, to, promotion);
 }
 
 function goToAnalysis() {
   router.push({
     path: '/analysis/bot',
-    query: { moves: game.moveUcis.value.join(',') },
+    query: { moves: moveUcis.value.join(',') },
   });
 }
 
 function newGame() {
-  game.cleanup();
+  cleanup();
   router.push('/lobby');
 }
 </script>
@@ -118,21 +115,23 @@ function newGame() {
   padding: 1rem;
 }
 
-.bot-thinking {
-  font-size: 0.9rem;
+.turn-indicator {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  background: var(--color-surface);
   color: var(--color-text-muted);
-  height: 1.5rem;
+  border: 1px solid var(--color-border);
+}
+.turn-indicator.my-turn {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
-.thinking-dots::after {
-  content: '';
-  animation: dots 1.5s steps(3, end) infinite;
-}
-@keyframes dots {
-  0%   { content: ''; }
-  33%  { content: '.'; }
-  66%  { content: '..'; }
-  100% { content: '...'; }
+.engine-error {
+  font-size: 0.85rem;
+  color: var(--color-danger);
 }
 
 .game-controls {
