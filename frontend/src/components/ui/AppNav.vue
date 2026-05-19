@@ -1,12 +1,12 @@
 <template>
   <nav class="app-nav">
     <!-- Лого -->
-    <router-link to="/lobby" class="nav-logo">
+    <router-link :to="homeLink" class="nav-logo">
       ♟ <span>Chess GTO</span>
     </router-link>
 
-    <!-- Основные ссылки (десктоп) -->
-    <div class="nav-links">
+    <!-- Основные ссылки — только для авторизованных -->
+    <div v-if="authStore.isAuthenticated" class="nav-links">
       <router-link to="/lobby"   class="nav-link">{{ $t('nav.play') }}</router-link>
       <router-link to="/profile" class="nav-link">{{ $t('nav.profile') }}</router-link>
     </div>
@@ -27,9 +27,9 @@
       </div>
 
       <!-- Пользователь -->
-      <div v-if="authStore.user" class="user-menu" @click="menuOpen = !menuOpen">
-        <span class="user-rating">{{ Math.round(authStore.user.rating) }}</span>
-        <span class="user-name">{{ authStore.user.username }}</span>
+      <div v-if="authStore.isAuthenticated" class="user-menu" @click="menuOpen = !menuOpen">
+        <span class="user-rating">{{ Math.round(authStore.user?.rating || 0) }}</span>
+        <span class="user-name">{{ authStore.user?.username }}</span>
         <span class="arrow">{{ menuOpen ? '▲' : '▼' }}</span>
 
         <!-- Дропдаун -->
@@ -42,14 +42,44 @@
           </button>
         </div>
       </div>
+      <router-link
+        v-else-if="route.path === '/login'"
+        to="/register"
+        class="btn-login btn-login-outline"
+      >
+        {{ $t('auth.register') }}
+      </router-link>
+      <router-link
+        v-else-if="route.path === '/register'"
+        to="/login"
+        class="btn-login btn-login-outline"
+      >
+        {{ $t('auth.login') }}
+      </router-link>
       <router-link v-else to="/login" class="btn-login">{{ $t('auth.login') }}</router-link>
     </div>
 
     <!-- Мобильное меню (нижняя панель) -->
     <div class="mobile-nav">
-      <router-link to="/lobby"   class="mobile-link"><span>♟</span>{{ $t('nav.play') }}</router-link>
-      <router-link to="/profile" class="mobile-link"><span>👤</span>{{ $t('nav.profile') }}</router-link>
-      <router-link to="/login"   class="mobile-link" v-if="!authStore.user">
+      <template v-if="authStore.isAuthenticated">
+        <router-link to="/lobby"   class="mobile-link"><span>♟</span>{{ $t('nav.play') }}</router-link>
+        <router-link to="/profile" class="mobile-link"><span>👤</span>{{ $t('nav.profile') }}</router-link>
+      </template>
+      <router-link
+        v-else-if="route.path === '/login'"
+        to="/register"
+        class="mobile-link"
+      >
+        <span>✨</span>{{ $t('auth.register') }}
+      </router-link>
+      <router-link
+        v-else-if="route.path === '/register'"
+        to="/login"
+        class="mobile-link"
+      >
+        <span>🔑</span>{{ $t('auth.login') }}
+      </router-link>
+      <router-link v-else to="/login" class="mobile-link">
         <span>🔑</span>{{ $t('auth.login') }}
       </router-link>
     </div>
@@ -57,16 +87,21 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { setLanguage } from '@/plugins/i18n';
 
+const route     = useRoute();
 const router    = useRouter();
 const authStore = useAuthStore();
 const { locale } = useI18n();
 const menuOpen  = ref(false);
+
+const homeLink = computed(() => (
+  authStore.isAuthenticated ? '/lobby' : '/login'
+));
 
 const currentLang = ref(locale.value);
 const langs = [
@@ -189,6 +224,11 @@ async function logout() {
   border-radius: var(--radius-sm);
   font-weight: 500;
   font-size: 0.9rem;
+}
+.btn-login-outline {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 
 /* Мобильная нижняя панель */
