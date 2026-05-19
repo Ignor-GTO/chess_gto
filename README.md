@@ -61,11 +61,11 @@ npm run dev
 1. Создайте Compose-приложение из репозитория, путь `./docker-compose.yml`.
 2. Заполните `.env` по `.env.example`.
 3. В **Domains** добавьте домен `chess.gto-team.uz`:
-   - **Рекомендуется:** сервис **nginx**, порт **80**
-   - **Или:** сервис **frontend**, порт **80** (API проксируется в nginx-spa.conf)
+   - сервис **frontend**, порт **80**
+   - удалите старый домен на сервис **nginx** (если был) — он больше не используется
 4. Deploy — SSL делает Traefik Dokploy.
 
-> **405 на `/api/auth/token/`** — домен смотрит на frontend без прокси API. Пересоберите frontend или переключите домен на сервис **nginx**.
+> **502 Bad Gateway** — домен должен указывать на **frontend**, не nginx. После смены — Redeploy.
 
 ## Graphify (база знаний)
 
@@ -91,6 +91,6 @@ python -m graphify watch .
 ```
 backend/     Django + Channels + Celery
 frontend/    Vue 3 SPA + Capacitor
-nginx/       Reverse proxy (HTTP за Traefik)
+nginx/       (legacy, не используется в Dokploy — вход через frontend)
 graphify-out/ Knowledge graph (graphify)
 ```

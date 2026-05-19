@@ -2,12 +2,11 @@ version: '3.9'
 
 # ─────────────────────────────────────────────────────────────
 # Docker Compose для Dokploy
-# Сервисы: db, redis, backend, celery, nginx, frontend
+# Dokploy Domains → сервис frontend, порт 80 (единая точка входа)
 # ─────────────────────────────────────────────────────────────
 
 services:
 
-  # ── PostgreSQL ────────────────────────────────────────────
   db:
     image: postgres:15-alpine
     restart: unless-stopped
@@ -23,7 +22,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Redis ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -36,7 +34,6 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── Django Backend (ASGI через Daphne) ────────────────────
   backend:
     build:
       context: ./backend
@@ -66,8 +63,13 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; s=socket.create_connection(('127.0.0.1',8000),3); s.close()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
-  # ── Celery Worker (рейтинг, фоновые задачи) ──────────────
   celery:
     build:
       context: ./backend
@@ -88,7 +90,6 @@ services:
       redis:
         condition: service_healthy
 
-  # ── Celery Beat (планировщик задач) ──────────────────────
   celery-beat:
     build:
       context: ./backend
@@ -109,7 +110,7 @@ services:
       redis:
         condition: service_healthy
 
-  # ── Vue Frontend (статика через Nginx) ────────────────────
+  # ── Единая точка входа: Vue SPA + прокси API/WS ──────────
   frontend:
     build:
       context: ./frontend
@@ -117,24 +118,11 @@ services:
     restart: unless-stopped
     expose:
       - "80"
-    networks:
-      - default
-      - dokploy-network
-
-  # ── Nginx Reverse Proxy ───────────────────────────────────
-  # Не биндим 80/443 на хост — Traefik Dokploy уже слушает эти порты.
-  # Домен настраивается в Dokploy → Domains → сервис nginx, порт 80.
-  nginx:
-    image: nginx:alpine
-    restart: unless-stopped
-    expose:
-      - "80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - media_data:/media:ro
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_healthy
     networks:
       - default
       - dokploy-network
