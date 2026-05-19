@@ -6,13 +6,18 @@
  */
 importScripts('/stockfish/stockfish.js');
 
+const STOCKFISH_OPTS = {
+  locateFile: (file) =>
+    file.includes('.wasm') ? '/stockfish/stockfish.wasm' : file,
+};
+
 let engine = null;
 let resolveMove = null;
 let currentSkillLevel = 10;
 
 function init(skillLevel = 10) {
   currentSkillLevel = skillLevel;
-  engine = Stockfish();
+  engine = Stockfish(STOCKFISH_OPTS);
   engine.onmessage = handleMessage;
   engine.postMessage('uci');
   engine.postMessage(`setoption name Skill Level value ${skillLevel}`);

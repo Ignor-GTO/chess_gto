@@ -22,14 +22,14 @@ from apps.api.admin_views import (
     AdminBotGameListView,
     AdminRecalculateRatingView,
 )
-from apps.games.bot_urls import bot_urlpatterns
+from apps.games.bot_urls import bot_urlpatterns, OnlineCountView
 
 # DRF Router для ViewSets
 router = DefaultRouter()
 router.register(r'games', GameViewSet, basename='game')
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
 
     # ── Аутентификация (JWT) ──────────────────────────────
     path('api/auth/token/',           TokenObtainPairView.as_view(),    name='token_obtain'),
@@ -38,6 +38,7 @@ urlpatterns = [
     path('api/auth/register/',        RegisterView.as_view(),           name='register'),
 
     # ── Пользователи ─────────────────────────────────────
+    path('api/users/online-count/', OnlineCountView.as_view(), name='online_count'),
     path('api/users/me/',             UserMeView.as_view(),             name='user_me'),
     path('api/users/<str:username>/', UserDetailView.as_view(),         name='user_detail'),
 

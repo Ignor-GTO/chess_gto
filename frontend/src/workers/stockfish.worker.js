@@ -21,7 +21,10 @@ let currentDepth = 18; // глубина анализа (12–18 для бала
 // ─── Инициализация ─────────────────────────────────────────────────────────
 
 function initEngine() {
-  stockfish = Stockfish();
+  stockfish = Stockfish({
+    locateFile: (file) =>
+      file.includes('.wasm') ? '/stockfish/stockfish.wasm' : file,
+  });
   stockfish.onmessage = handleEngineMessage;
   stockfish.postMessage('uci');
   stockfish.postMessage('setoption name Threads value 2');

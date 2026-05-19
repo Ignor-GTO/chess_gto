@@ -1,4 +1,4 @@
-"""URL маршруты для bot games и online count."""
+"""URL маршруты для bot games."""
 from django.urls import path
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -28,5 +28,4 @@ bot_urlpatterns = [
     path('api/games/bot/create/', BotGameCreateView.as_view(), name='bot_game_create'),
     path('api/games/bot/<uuid:pk>/', BotGameUpdateView.as_view(), name='bot_game_update'),
     path('api/games/bot/<uuid:pk>/detail/', BotGameDetailView.as_view(), name='bot_game_detail'),
-    path('api/users/online-count/', OnlineCountView.as_view(), name='online_count'),
 ]
