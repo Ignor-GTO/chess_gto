@@ -1,0 +1,39 @@
+# Environment
+.env
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/public/stockfish/
+
+# Django
+backend/staticfiles/
+backend/media/
+*.sqlite3
+
+# Graphify (commit graph, skip cache)
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Capacitor native projects (generate via cap add)
+frontend/android/
+frontend/ios/
+
+# Logs
+*.log

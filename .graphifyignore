@@ -1,0 +1,10 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.git/
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json
+.env
+*.log
