@@ -1,62 +1,47 @@
 <template>
   <div
     class="chess-board-wrapper"
-    :class="{ 'flipped': isFlipped }"
+    :class="{ flipped: isFlipped }"
     ref="boardRef"
   >
-    <!-- Координаты: буквы (a-h) -->
     <div class="coords-bottom">
       <span v-for="f in files" :key="f">{{ f }}</span>
     </div>
-    <!-- Координаты: цифры (1-8) -->
     <div class="coords-left">
       <span v-for="r in ranks" :key="r">{{ r }}</span>
     </div>
 
-    <!-- Сетка 8x8 -->
-    <div class="board-grid" @mouseleave="hoveredSquare = null">
+    <div class="board-grid">
       <div
         v-for="square in squares"
         :key="square.name"
         class="square"
         :class="[
           square.isLight ? 'sq-light' : 'sq-dark',
-          { 'sq-selected':    selectedSquare === square.name },
-          { 'sq-legal-move':  legalMoveSquares.includes(square.name) },
-          { 'sq-last-move':   lastMove && (lastMove.from === square.name || lastMove.to === square.name) },
-          { 'sq-check':       kingInCheckSquare === square.name },
-          { 'sq-hovered':     hoveredSquare === square.name },
+          { 'sq-selected': selectedSquare === square.name },
+          { 'sq-legal-move': legalMoveSet.has(square.name) },
+          { 'sq-last-move': lastMove && (lastMove.from === square.name || lastMove.to === square.name) },
+          { 'sq-check': kingInCheckSquare === square.name },
         ]"
         :data-square="square.name"
         @click="onSquareClick(square.name)"
-        @touchstart.prevent="onTouchStart($event, square.name)"
-        @touchend.prevent="onTouchEnd($event, square.name)"
-        @dragover.prevent
-        @drop="onDrop($event, square.name)"
       >
-        <!-- Точка легального хода -->
         <div
-          v-if="legalMoveSquares.includes(square.name)"
+          v-if="legalMoveSet.has(square.name)"
           class="legal-dot"
           :class="{ 'legal-capture': !!getPiece(square.name) }"
         />
 
-        <!-- Фигура -->
-        <transition name="piece-move">
-          <img
-            v-if="getPiece(square.name)"
-            :src="getPieceImage(getPiece(square.name))"
-            :alt="getPiece(square.name)"
-            class="piece"
-            :class="{ 'piece-dragging': draggedFrom === square.name }"
-            draggable="true"
-            @dragstart="onDragStart($event, square.name)"
-            @dragend="onDragEnd"
-          />
-        </transition>
+        <img
+          v-if="getPiece(square.name)"
+          :src="getPieceImage(getPiece(square.name))"
+          :alt="getPiece(square.name)"
+          class="piece"
+          draggable="false"
+        />
       </div>
     </div>
-    <!-- Превращение пешки -->
+
     <div v-if="pendingPromotion" class="promotion-modal">
       <p>Выберите фигуру</p>
       <div class="promotion-pieces">
@@ -75,74 +60,57 @@
 
 <script setup>
 /**
- * ChessBoard.vue — Адаптивная шахматная доска
- *
- * Возможности:
- * - Клик для выбора и перемещения фигур
- * - Drag & Drop (мышь)
- * - Touch события (мобильные)
- * - Подсветка легальных ходов, последнего хода, шаха
- * - Поддержка перевёрнутой доски (для чёрных)
+ * ChessBoard.vue — tap/click to move (без HTML5 drag).
  */
 import { ref, computed, watch } from 'vue';
-import { Chess } from 'chess.js'; // npm install chess.js
+import { Chess } from 'chess.js';
 
 const props = defineProps({
   fen: {
     type: String,
-    default: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    default: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
   },
-  playerColor: { type: String, default: 'white' }, // 'white' | 'black'
-  lastMove:    { type: Object, default: null },     // { from: 'e2', to: 'e4' }
+  playerColor: { type: String, default: 'white' },
+  lastMove:    { type: Object, default: null },
   isMyTurn:    { type: Boolean, default: false },
-  disabled:    { type: Boolean, default: false },   // после окончания игры
+  disabled:    { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['move']); // emit({ from, to, promotion })
+const emit = defineEmits(['move']);
 
-// ─── Состояние ───────────────────────────────────────────────────────────────
-
-const boardRef = ref(null);
 const selectedSquare = ref(null);
-const hoveredSquare = ref(null);
-const draggedFrom = ref(null);
-const touchStartSquare = ref(null);
-const pendingPromotion = ref(null); // { from, to }
+const pendingPromotion = ref(null);
 const promotionPieces = ['q', 'r', 'b', 'n'];
 
-// Движок chess.js для валидации легальных ходов на клиенте
 const chess = ref(new Chess(props.fen));
 
-// Реактивное обновление при смене FEN
 watch(() => props.fen, (newFen) => {
   if (typeof newFen !== 'string' || !newFen) return;
   try {
     chess.value = new Chess(newFen);
     selectedSquare.value = null;
+    pendingPromotion.value = null;
   } catch {
-    // игнорируем некорректный FEN
+    // ignore invalid FEN
   }
 });
-
-// ─── Вычисляемые данные ──────────────────────────────────────────────────────
 
 const isFlipped = computed(() => props.playerColor === 'black');
 
 const files = computed(() =>
-  isFlipped.value ? ['h','g','f','e','d','c','b','a'] : ['a','b','c','d','e','f','g','h']
+  isFlipped.value ? ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'] : ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
 );
 const ranks = computed(() =>
-  isFlipped.value ? ['1','2','3','4','5','6','7','8'] : ['8','7','6','5','4','3','2','1']
+  isFlipped.value ? ['1', '2', '3', '4', '5', '6', '7', '8'] : ['8', '7', '6', '5', '4', '3', '2', '1'],
 );
 
-// Генерируем все 64 клетки в нужном порядке
 const squares = computed(() => {
   const result = [];
   for (const rank of ranks.value) {
     for (const file of files.value) {
       const name = file + rank;
       const fileIdx = 'abcdefgh'.indexOf(file);
-      const rankIdx = parseInt(rank) - 1;
+      const rankIdx = parseInt(rank, 10) - 1;
       result.push({
         name,
         isLight: (fileIdx + rankIdx) % 2 !== 0,
@@ -152,19 +120,20 @@ const squares = computed(() => {
   return result;
 });
 
-// Легальные ходы для выбранной фигуры
-const legalMoveSquares = computed(() => {
-  if (!selectedSquare.value) return [];
-  const moves = chess.value.moves({ square: selectedSquare.value, verbose: true });
-  return moves.map(m => m.to);
+const legalMoveSet = computed(() => {
+  if (!selectedSquare.value) return new Set();
+  try {
+    const moves = chess.value.moves({ square: selectedSquare.value, verbose: true });
+    return new Set(moves.map(m => m.to));
+  } catch {
+    return new Set();
+  }
 });
 
-// Клетка короля под шахом
 const kingInCheckSquare = computed(() => {
   if (!chess.value.inCheck()) return null;
   const color = chess.value.turn();
-  const board = chess.value.board();
-  for (const row of board) {
+  for (const row of chess.value.board()) {
     for (const cell of row) {
       if (cell && cell.type === 'k' && cell.color === color) {
         return cell.square;
@@ -174,43 +143,48 @@ const kingInCheckSquare = computed(() => {
   return null;
 });
 
-// ─── Работа с фигурами ───────────────────────────────────────────────────────
+const PIECE_IMAGES = {};
+['w', 'b'].forEach(color => {
+  ['P', 'N', 'B', 'R', 'Q', 'K'].forEach(type => {
+    PIECE_IMAGES[`${color}${type}`] = `/pieces/${color}${type}.svg`;
+  });
+});
 
 function getPiece(squareName) {
   const piece = chess.value.get(squareName);
   if (!piece) return null;
-  return piece.color + piece.type.toUpperCase(); // 'wP', 'bK', etc.
+  return piece.color + piece.type.toUpperCase();
 }
-
-// SVG фигуры: набор Cburnett (как на Lichess / Wikimedia)
-const PIECE_IMAGES = {};
-['w','b'].forEach(color => {
-  ['P','N','B','R','Q','K'].forEach(type => {
-    PIECE_IMAGES[`${color}${type}`] =
-      `/pieces/${color}${type}.svg`;
-  });
-});
 
 function getPieceImage(pieceCode) {
   return PIECE_IMAGES[pieceCode] || '';
 }
 
-// ─── Обработчики кликов ──────────────────────────────────────────────────────
+function myColorChar() {
+  return props.playerColor === 'white' ? 'w' : 'b';
+}
+
+function canInteract() {
+  return !props.disabled && props.isMyTurn && !pendingPromotion.value;
+}
 
 function onSquareClick(squareName) {
-  if (props.disabled || !props.isMyTurn) return;
+  if (!canInteract()) return;
 
   const piece = getPiece(squareName);
   const turn = chess.value.turn();
-  const myColor = props.playerColor === 'white' ? 'w' : 'b';
+  const myColor = myColorChar();
 
-  // Выбираем свою фигуру
+  if (selectedSquare.value === squareName) {
+    selectedSquare.value = null;
+    return;
+  }
+
   if (piece && piece.startsWith(myColor) && turn === myColor) {
     selectedSquare.value = squareName;
     return;
   }
 
-  // Делаем ход
   if (selectedSquare.value) {
     tryMove(selectedSquare.value, squareName);
   }
@@ -242,43 +216,8 @@ function tryMove(from, to, promotion) {
 function confirmPromotion(piece) {
   if (!pendingPromotion.value) return;
   const { from, to } = pendingPromotion.value;
+  pendingPromotion.value = null;
   tryMove(from, to, piece);
-}
-
-// ─── Drag & Drop ─────────────────────────────────────────────────────────────
-
-function onDragStart(event, squareName) {
-  if (props.disabled || !props.isMyTurn) {
-    event.preventDefault();
-    return;
-  }
-  draggedFrom.value = squareName;
-  selectedSquare.value = squareName;
-  event.dataTransfer.effectAllowed = 'move';
-}
-
-function onDragEnd() {
-  draggedFrom.value = null;
-}
-
-function onDrop(event, targetSquare) {
-  if (!draggedFrom.value) return;
-  tryMove(draggedFrom.value, targetSquare);
-  draggedFrom.value = null;
-}
-
-// ─── Touch события (мобильные) ───────────────────────────────────────────────
-
-function onTouchStart(event, squareName) {
-  touchStartSquare.value = squareName;
-  onSquareClick(squareName);
-}
-
-function onTouchEnd(event, squareName) {
-  if (touchStartSquare.value && touchStartSquare.value !== squareName) {
-    tryMove(touchStartSquare.value, squareName);
-  }
-  touchStartSquare.value = null;
 }
 </script>
 
@@ -287,7 +226,8 @@ function onTouchEnd(event, squareName) {
   position: relative;
   display: inline-block;
   user-select: none;
-  /* Квадратные пропорции */
+  -webkit-user-select: none;
+  touch-action: manipulation;
   width: min(90vw, 90vh, 560px);
   aspect-ratio: 1;
 }
@@ -309,25 +249,21 @@ function onTouchEnd(event, squareName) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.1s;
 }
 
 .sq-light { background-color: #f0d9b5; }
 .sq-dark  { background-color: #b58863; }
 
-/* Подсветки */
 .sq-selected   { background-color: #f6f669 !important; }
 .sq-last-move  { background-color: rgba(246, 246, 105, 0.5) !important; }
 .sq-check      { background-color: rgba(220, 30, 30, 0.8) !important; }
-.sq-hovered    { filter: brightness(1.1); }
 
-/* Точки легальных ходов */
 .legal-dot {
   position: absolute;
   width: 30%;
   height: 30%;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.25);
   pointer-events: none;
   z-index: 2;
 }
@@ -335,25 +271,22 @@ function onTouchEnd(event, squareName) {
   width: 100%;
   height: 100%;
   background: transparent;
-  border: 5px solid rgba(0, 0, 0, 0.2);
+  border: 5px solid rgba(0, 0, 0, 0.25);
   border-radius: 50%;
 }
 
-/* Фигуры */
 .piece {
   width: 90%;
   height: 90%;
   object-fit: contain;
   position: relative;
   z-index: 3;
-  cursor: grab;
-  transition: transform 0.05s;
-  filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.4));
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.4));
 }
-.piece:active { cursor: grabbing; transform: scale(1.1); }
-.piece-dragging { opacity: 0.5; }
 
-/* Координаты */
 .coords-bottom {
   display: flex;
   justify-content: space-around;
@@ -373,24 +306,15 @@ function onTouchEnd(event, squareName) {
   color: #666;
 }
 
-/* Анимация движения фигуры */
-.piece-move-enter-active { transition: all 0.15s ease; }
-.piece-move-leave-active { transition: all 0.1s ease; }
-.piece-move-enter-from   { opacity: 0; transform: scale(0.8); }
-.piece-move-leave-to     { opacity: 0; }
-
-/* Мобильная адаптация */
 @media (max-width: 480px) {
-  .chess-board-wrapper {
-    width: 100vw;
-  }
+  .chess-board-wrapper { width: 100vw; }
   .piece { width: 85%; height: 85%; }
 }
 
 .promotion-modal {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   flex-direction: column;
   align-items: center;
