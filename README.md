@@ -17,11 +17,15 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env
 ```
 
-### 2. Docker (рекомендуется)
+### 2. Docker (локально)
+
+На сервере Dokploy порты 80/443 заняты Traefik — см. раздел **Dokploy** ниже.
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
+
+Откройте http://localhost:8080
 
 ### 3. Разработка без Docker
 
@@ -52,6 +56,13 @@ npm run dev
 
 Откройте http://localhost:5173
 
+## Dokploy
+
+1. Создайте Compose-приложение из репозитория, путь `./docker-compose.yml`.
+2. Заполните `.env` по `.env.example`.
+3. В **Domains** добавьте домен `chess.gto-team.uz` → сервис **nginx**, порт **80**.
+4. Deploy — SSL и маршрутизацию делает Traefik Dokploy, не биндим 80/443 в compose.
+
 ## Graphify (база знаний)
 
 ```bash
@@ -76,6 +87,6 @@ python -m graphify watch .
 ```
 backend/     Django + Channels + Celery
 frontend/    Vue 3 SPA + Capacitor
-nginx/       Reverse proxy + SSL
+nginx/       Reverse proxy (HTTP за Traefik)
 graphify-out/ Knowledge graph (graphify)
 ```
