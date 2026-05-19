@@ -50,13 +50,16 @@ import AnalysisPanel from '@/components/analysis/AnalysisPanel.vue';
 const route  = useRoute();
 const router = useRouter();
 
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 const gameInfo      = ref(null);
 const moveUcis      = ref([]);
 const moveSans      = ref([]);
-const allFens       = ref([]);
+const allFens       = ref([START_FEN]);
 const currentMoveIdx = ref(0);
+const isLoaded      = ref(false);
 
-const currentFen = computed(() => allFens.value[currentMoveIdx.value] || '');
+const currentFen = computed(() => allFens.value[currentMoveIdx.value] || START_FEN);
 const currentLastMove = computed(() => {
   const idx = currentMoveIdx.value;
   if (idx === 0 || !moveUcis.value[idx - 1]) return null;
@@ -73,26 +76,38 @@ onMounted(async () => {
     const ucis = queryMoves.split(',').filter(Boolean);
     buildFromUcis(ucis);
   } else if (gameId === 'bot' && botId) {
-    const { data } = await axios.get(`/api/games/bot/${botId}/detail/`);
-    gameInfo.value = {
-      white: data.player_color === 'white' ? 'Вы' : `🤖 Stockfish ${data.skill_level}`,
-      black: data.player_color === 'black' ? 'Вы' : `🤖 Stockfish ${data.skill_level}`,
-      timeControl: `bot skill ${data.skill_level}`,
-    };
-    if (data.pgn) {
-      const chess = new Chess();
-      chess.loadPgn(data.pgn);
-      buildFromUcis(chess.history({ verbose: true }).map(m => m.from + m.to + (m.promotion || '')));
+    try {
+      const { data } = await axios.get(`/api/games/bot/${botId}/detail/`);
+      gameInfo.value = {
+        white: data.player_color === 'white' ? 'Вы' : `🤖 Бот ${data.skill_level}`,
+        black: data.player_color === 'black' ? 'Вы' : `🤖 Бот ${data.skill_level}`,
+        timeControl: `bot skill ${data.skill_level}`,
+      };
+      if (data.pgn) {
+        const chess = new Chess();
+        chess.loadPgn(data.pgn);
+        buildFromUcis(chess.history({ verbose: true }).map(m => m.from + m.to + (m.promotion || '')));
+      } else if (data.moves?.length) {
+        buildFromUcis(data.moves.map(m => m.uci), data.moves.map(m => m.san));
+      }
+    } catch (err) {
+      console.warn('Не удалось загрузить партию vs бот:', err);
     }
   } else if (gameId && gameId !== 'bot') {
-    const { data } = await axios.get(`/api/games/${gameId}/`);
-    gameInfo.value = {
-      white: data.white_player?.username,
-      black: data.black_player?.username,
-      timeControl: data.time_control,
-    };
-    buildFromUcis(data.moves.map(m => m.uci), data.moves.map(m => m.san));
+    try {
+      const { data } = await axios.get(`/api/games/${gameId}/`);
+      gameInfo.value = {
+        white: data.white_player?.username,
+        black: data.black_player?.username,
+        timeControl: data.time_control,
+      };
+      buildFromUcis(data.moves.map(m => m.uci), data.moves.map(m => m.san));
+    } catch (err) {
+      console.warn('Не удалось загрузить партию:', err);
+    }
   }
+
+  isLoaded.value = true;
 });
 
 function buildFromUcis(ucis, sans = []) {
@@ -115,6 +130,7 @@ function buildFromUcis(ucis, sans = []) {
   moveSans.value = sanList;
   allFens.value  = fens;
   currentMoveIdx.value = fens.length - 1;
+  isLoaded.value = true;
 }
 
 function jumpTo(idx) {

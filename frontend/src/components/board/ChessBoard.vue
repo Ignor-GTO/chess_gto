@@ -65,8 +65,19 @@
 import { ref, shallowRef, computed, watch, markRaw } from 'vue';
 import { Chess } from 'chess.js';
 
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+function isValidFen(fen) {
+  return typeof fen === 'string' && fen.trim().split(/\s+/).length === 6;
+}
+
 function createChess(fen) {
-  return markRaw(new Chess(fen));
+  const safeFen = isValidFen(fen) ? fen : START_FEN;
+  try {
+    return markRaw(new Chess(safeFen));
+  } catch {
+    return markRaw(new Chess(START_FEN));
+  }
 }
 
 const props = defineProps({
@@ -103,7 +114,7 @@ const boardPieces = computed(() => {
 });
 
 watch(() => props.fen, (newFen) => {
-  if (typeof newFen !== 'string' || !newFen) return;
+  if (!isValidFen(newFen)) return;
   try {
     chess.value = createChess(newFen);
     selectedSquare.value = null;

@@ -73,7 +73,7 @@
  * 3. Показывает граф оценки, классификацию ходов и текстовый отчёт
  * 4. Вызывает нативный TTS через Capacitor
  */
-import { ref, computed, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted, toRaw } from 'vue';
 import EvalGraph from './EvalGraph.vue';
 import { useTTS } from '@/composables/useTTS';
 
@@ -121,11 +121,14 @@ function startAnalysis() {
   };
 
   // Инициализируем движок и запускаем анализ
+  // Vue reactive Proxy нельзя передать в Worker — только plain-массив
+  const movesPlain = toRaw(props.moves).map(m => String(m));
+
   worker.postMessage({ type: 'init' });
   setTimeout(() => {
     worker.postMessage({
       type: 'analyze_game',
-      payload: { moves: props.moves, depth: 16 },
+      payload: { moves: movesPlain, depth: 16 },
     });
   }, 500); // Ждём инициализации Stockfish WASM
 }
