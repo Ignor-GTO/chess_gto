@@ -1,9 +1,13 @@
 /**
  * useBotGame.js — игра против локального бота (Web Worker).
  */
-import { ref, computed, onUnmounted } from 'vue';
+import { ref, shallowRef, computed, onUnmounted, markRaw } from 'vue';
 import { Chess } from 'chess.js';
 import axios from '@/plugins/axios';
+
+function createChess(fen) {
+  return markRaw(new Chess(fen));
+}
 
 export const SKILL_CONFIGS = {
   0:  { label: '🐣 Новичок',   movetime: 250,  skillLevel: 0  },
@@ -14,7 +18,7 @@ export const SKILL_CONFIGS = {
 };
 
 export function useBotGame() {
-  const chess         = ref(new Chess());
+  const chess         = shallowRef(createChess());
   const fen           = ref(chess.value.fen());
   const moves         = ref([]);
   const lastMove      = ref(null);
@@ -92,7 +96,7 @@ export function useBotGame() {
 
     playerColor.value = color;
     skillLevel.value = skill;
-    chess.value = new Chess();
+    chess.value = createChess();
     fen.value = chess.value.fen();
     moves.value = [];
     lastMove.value = null;

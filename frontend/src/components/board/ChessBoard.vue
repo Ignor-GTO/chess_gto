@@ -19,7 +19,7 @@
         :class="[
           square.isLight ? 'sq-light' : 'sq-dark',
           { 'sq-selected': selectedSquare === square.name },
-          { 'sq-legal-move': legalMoveSet.has(square.name) },
+          { 'sq-legal-move': legalTargetSet.has(square.name) },
           { 'sq-last-move': lastMove && (lastMove.from === square.name || lastMove.to === square.name) },
           { 'sq-check': kingInCheckSquare === square.name },
         ]"
@@ -27,7 +27,7 @@
         @click="onSquareClick(square.name)"
       >
         <div
-          v-if="legalMoveSet.has(square.name)"
+          v-if="legalTargetSet.has(square.name)"
           class="legal-dot"
           :class="{ 'legal-capture': !!boardPieces[square.name] }"
         />
@@ -62,8 +62,12 @@
 /**
  * ChessBoard.vue — tap/click to move (без HTML5 drag).
  */
-import { ref, computed, watch } from 'vue';
+import { ref, shallowRef, computed, watch, markRaw } from 'vue';
 import { Chess } from 'chess.js';
+
+function createChess(fen) {
+  return markRaw(new Chess(fen));
+}
 
 const props = defineProps({
   fen: {
@@ -79,10 +83,14 @@ const props = defineProps({
 const emit = defineEmits(['move']);
 
 const selectedSquare = ref(null);
+const legalTargets = ref([]);
 const pendingPromotion = ref(null);
 const promotionPieces = ['q', 'r', 'b', 'n'];
 
-const chess = ref(new Chess(props.fen));
+// chess.js ломается внутри Vue reactive Proxy — только shallowRef + markRaw
+const chess = shallowRef(createChess(props.fen));
+
+const legalTargetSet = computed(() => new Set(legalTargets.value));
 
 const boardPieces = computed(() => {
   const map = {};
@@ -97,8 +105,9 @@ const boardPieces = computed(() => {
 watch(() => props.fen, (newFen) => {
   if (typeof newFen !== 'string' || !newFen) return;
   try {
-    chess.value = new Chess(newFen);
+    chess.value = createChess(newFen);
     selectedSquare.value = null;
+    legalTargets.value = [];
     pendingPromotion.value = null;
   } catch {
     // ignore invalid FEN
@@ -128,16 +137,6 @@ const squares = computed(() => {
     }
   }
   return result;
-});
-
-const legalMoveSet = computed(() => {
-  if (!selectedSquare.value) return new Set();
-  try {
-    const moves = chess.value.moves({ square: selectedSquare.value, verbose: true });
-    return new Set(moves.map(m => m.to));
-  } catch {
-    return new Set();
-  }
 });
 
 const kingInCheckSquare = computed(() => {
@@ -172,6 +171,21 @@ function canInteract() {
   return !props.disabled && props.isMyTurn && !pendingPromotion.value;
 }
 
+function clearSelection() {
+  selectedSquare.value = null;
+  legalTargets.value = [];
+}
+
+function selectSquare(squareName) {
+  selectedSquare.value = squareName;
+  try {
+    const moves = chess.value.moves({ square: squareName, verbose: true });
+    legalTargets.value = moves.map(m => m.to);
+  } catch {
+    legalTargets.value = [];
+  }
+}
+
 function onSquareClick(squareName) {
   if (!canInteract()) return;
 
@@ -180,12 +194,12 @@ function onSquareClick(squareName) {
   const myColor = myColorChar();
 
   if (selectedSquare.value === squareName) {
-    selectedSquare.value = null;
+    clearSelection();
     return;
   }
 
   if (piece && piece.startsWith(myColor) && turn === myColor) {
-    selectedSquare.value = squareName;
+    selectSquare(squareName);
     return;
   }
 
@@ -203,7 +217,7 @@ function tryMove(from, to, promotion) {
 
   const move = chess.value.moves({ square: from, verbose: true }).find(m => m.to === to);
   if (!move) {
-    selectedSquare.value = null;
+    clearSelection();
     return;
   }
 
@@ -213,7 +227,7 @@ function tryMove(from, to, promotion) {
   }
 
   emit('move', { from, to, promotion: isPromotion ? (promotion || 'q') : undefined });
-  selectedSquare.value = null;
+  clearSelection();
   pendingPromotion.value = null;
 }
 
