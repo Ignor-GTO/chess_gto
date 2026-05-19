@@ -1,10 +1,12 @@
 <template>
   <div class="analysis-panel" :class="{ embedded }">
+    <!-- Ошибка -->
     <div v-if="errorMsg" class="error-block">
       ⚠️ {{ errorMsg }}
       <button @click="startAnalysis" class="btn-retry">Повторить</button>
     </div>
 
+    <!-- Старт (как «Game Review» на Chess.com) -->
     <button
       v-if="!isAnalyzing && !analysisComplete && !errorMsg"
       @click="startAnalysis"
@@ -14,68 +16,84 @@
       🎓 Запустить разбор
     </button>
 
-    <div v-if="engineLoading" class="progress-block">
-      <div class="progress-label">Загрузка движка Stockfish…</div>
-      <div class="progress-bar"><div class="progress-fill indeterminate"></div></div>
-    </div>
-
-    <div v-if="isAnalyzing" class="progress-block">
+    <!-- Загрузка -->
+    <div v-if="engineLoading || isAnalyzing" class="progress-block">
       <div class="progress-label">
-        Анализ: ход {{ currentMove }} из {{ totalMoves }}
+        {{ engineLoading ? 'Загрузка Stockfish…' : `Анализ: ${currentMove} / ${totalMoves}` }}
       </div>
       <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+        <div
+          class="progress-fill"
+          :class="{ indeterminate: engineLoading }"
+          :style="!engineLoading ? { width: progressPercent + '%' } : undefined"
+        />
       </div>
     </div>
 
-    <EvalGraph v-if="analysisResults.length" :results="analysisResults" />
+    <!-- Обзор после анализа -->
+    <template v-if="analysisComplete && !guidedMode">
+      <div class="accuracy-row">
+        <div class="acc-item">
+          <span class="acc-label">♔ Белые</span>
+          <span class="acc-value">{{ accuracy.white }}%</span>
+        </div>
+        <div class="acc-item">
+          <span class="acc-label">♚ Чёрные</span>
+          <span class="acc-value">{{ accuracy.black }}%</span>
+        </div>
+      </div>
 
-    <div v-if="analysisResults.length" class="moves-list">
-      <div
-        v-for="(move, idx) in analysisResults"
-        :key="idx"
-        class="move-item"
-        :class="`move-${move.classification}`"
+      <EvalGraph
+        v-if="analysisResults.length"
+        :results="analysisResults"
+        :move-sans="moveSans"
+        @jump-to-move="onGraphJump"
+      />
+
+      <p v-if="summaryText" class="coach-summary">{{ summaryText }}</p>
+
+      <button
+        v-if="keyMoments.length"
+        class="btn-start-review"
+        @click="startGuidedReview"
       >
-        <span class="move-number">{{ Math.floor(idx / 2) + 1 }}{{ idx % 2 === 0 ? '.' : '...' }}</span>
-        <span class="move-san">{{ moveSans[idx] }}</span>
-        <span class="move-badge">{{ classificationLabel(move.classification) }}</span>
-        <span class="move-eval">{{ formatEval(move.evalCp) }}</span>
-      </div>
-    </div>
-
-    <div v-if="report" class="report-block">
-      <h3>📋 Отчёт</h3>
-      <p class="report-text">{{ report }}</p>
-      <div class="accuracy-block">
-        <div class="accuracy-item">
-          <span>♔ Белые</span>
-          <span class="accuracy-value">{{ accuracy.white }}%</span>
-        </div>
-        <div class="accuracy-item">
-          <span>♚ Чёрные</span>
-          <span class="accuracy-value">{{ accuracy.black }}%</span>
-        </div>
-      </div>
-      <button @click="speakReport" class="btn-tts" :disabled="isSpeaking">
-        🔊 {{ isSpeaking ? 'Озвучиваю…' : 'Голосовой отчёт' }}
+        ▶ Начать разбор ({{ keyMoments.length }} ключ. моментов)
       </button>
-    </div>
+      <p v-else class="no-key-moments">Серьёзных ошибок не найдено — отличная партия!</p>
+    </template>
+
+    <!-- Пошаговый разбор с «тренером» -->
+    <template v-if="guidedMode && currentMoment">
+      <div class="coach-box">
+        <div class="coach-avatar">🎓</div>
+        <p class="coach-text">{{ coachComment }}</p>
+      </div>
+      <div class="guided-progress">
+        Момент {{ guidedPointer + 1 }} из {{ keyMoments.length }}
+      </div>
+      <div class="guided-actions">
+        <button class="btn-next" @click="nextMoment">
+          {{ guidedPointer >= keyMoments.length - 1 ? 'Завершить' : 'Далее →' }}
+        </button>
+        <button class="btn-skip" @click="exitGuided">Выйти</button>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted, toRaw } from 'vue';
+import { ref, computed, watch, onUnmounted, toRaw } from 'vue';
 import EvalGraph from './EvalGraph.vue';
-import { useTTS } from '@/composables/useTTS';
 
 const props = defineProps({
   moves: { type: Array, default: () => [] },
   moveSans: { type: Array, default: () => [] },
+  playerColor: { type: String, default: 'white' },
+  currentMoveIdx: { type: Number, default: 0 },
   embedded: { type: Boolean, default: false },
 });
 
-const { speak, stop, isSpeaking } = useTTS();
+const emit = defineEmits(['jump', 'results']);
 
 const isAnalyzing = ref(false);
 const analysisComplete = ref(false);
@@ -84,8 +102,10 @@ const errorMsg = ref('');
 const currentMove = ref(0);
 const totalMoves = ref(0);
 const analysisResults = ref([]);
-const report = ref('');
 const accuracy = ref({ white: 0, black: 0 });
+
+const guidedMode = ref(false);
+const guidedPointer = ref(0);
 
 let worker = null;
 
@@ -93,28 +113,79 @@ const progressPercent = computed(() =>
   totalMoves.value ? Math.round((currentMove.value / totalMoves.value) * 100) : 0,
 );
 
+const playerChar = computed(() => (props.playerColor === 'white' ? 'w' : 'b'));
+
+/** Ключевые моменты для пошагового разбора (как Chess.com Coach) */
+const keyMoments = computed(() => {
+  if (!analysisResults.value.length) return [];
+  const priority = { blunder: 0, mistake: 1, inaccuracy: 2, brilliant: 3, great: 4 };
+  return analysisResults.value
+    .map((r, i) => ({
+      ...r,
+      arrayIdx: i,
+      fenIdx: i + 1,
+      moveNum: Math.floor(i / 2) + 1,
+      isPlayerMove: (i % 2 === 0) === (props.playerColor === 'white'),
+    }))
+    .filter(r => ['blunder', 'mistake', 'inaccuracy', 'brilliant', 'great'].includes(r.classification))
+    .filter(r => r.isPlayerMove || r.classification === 'brilliant')
+    .sort((a, b) => (priority[a.classification] ?? 9) - (priority[b.classification] ?? 9) || a.fenIdx - b.fenIdx);
+});
+
+const currentMoment = computed(() => keyMoments.value[guidedPointer.value] || null);
+
+const summaryText = computed(() => {
+  if (!analysisResults.value.length) return '';
+  const blunders = analysisResults.value.filter(r => r.classification === 'blunder').length;
+  const mistakes = analysisResults.value.filter(r => r.classification === 'mistake').length;
+  const playerAcc = props.playerColor === 'white' ? accuracy.value.white : accuracy.value.black;
+  if (blunders === 0 && mistakes <= 1) {
+    return `Точность ${playerAcc}% — хорошая игра. Разберём ключевые моменты.`;
+  }
+  return `Точность ${playerAcc}%. Зевков: ${blunders}, ошибок: ${mistakes}. Нажмите «Начать разбор».`;
+});
+
+const COACH_MSG = {
+  blunder: (m, sans) =>
+    `Зевок на ходу ${m.moveNum} (${sans}). Лучше было ${m.bestMove || '—'}.`,
+  mistake: (m, sans) =>
+    `Ошибка на ходу ${m.moveNum} (${sans}). Рекомендация: ${m.bestMove || '—'}.`,
+  inaccuracy: (m, sans) =>
+    `Неточность на ходу ${m.moveNum} (${sans}).`,
+  brilliant: (m, sans) => `Блестящий ход ${m.moveNum} (${sans})!`,
+  great: (m, sans) => `Отличный ход ${m.moveNum} (${sans}).`,
+};
+
+const coachComment = computed(() => {
+  const m = currentMoment.value;
+  if (!m) return '';
+  const sans = props.moveSans[m.arrayIdx] || m.uci || '';
+  const fn = COACH_MSG[m.classification];
+  return fn ? fn(m, sans) : '';
+});
+
+watch(analysisResults, (val) => {
+  if (val.length) emit('results', val);
+}, { deep: true });
+
 function startAnalysis() {
   if (!props.moves.length) return;
-
   worker?.terminate();
   worker = null;
-
+  guidedMode.value = false;
   isAnalyzing.value = false;
   analysisComplete.value = false;
   engineLoading.value = true;
   errorMsg.value = '';
   analysisResults.value = [];
-  report.value = '';
   currentMove.value = 0;
   totalMoves.value = props.moves.length;
 
   const movesPlain = toRaw(props.moves).map(m => String(m));
-
   worker = new Worker(new URL('@/workers/stockfish.worker.js', import.meta.url), { type: 'classic' });
   worker.onmessage = handleWorkerMessage;
-  worker.onerror = () => failAnalysis('Не удалось запустить Stockfish Worker');
+  worker.onerror = () => failAnalysis('Stockfish недоступен');
   worker.postMessage({ type: 'init' });
-
   worker._pendingAnalyze = movesPlain;
 }
 
@@ -128,61 +199,57 @@ function failAnalysis(msg) {
 
 function handleWorkerMessage(event) {
   const { type } = event.data;
-
   switch (type) {
     case 'ready':
       engineLoading.value = false;
       isAnalyzing.value = true;
-      worker.postMessage({
-        type: 'analyze_game',
-        payload: { moves: worker._pendingAnalyze, depth: 12 },
-      });
+      worker.postMessage({ type: 'analyze_game', payload: { moves: worker._pendingAnalyze, depth: 12 } });
       break;
-
     case 'analysis_progress':
       currentMove.value = event.data.moveIndex + 1;
       analysisResults.value[event.data.moveIndex] = event.data.result;
       break;
-
     case 'analysis_complete':
       isAnalyzing.value = false;
       analysisComplete.value = true;
       analysisResults.value = event.data.results;
-      report.value = event.data.report;
       {
         const whites = event.data.results.filter((_, i) => i % 2 === 0);
         const blacks = event.data.results.filter((_, i) => i % 2 === 1);
         accuracy.value = { white: calcAccuracy(whites), black: calcAccuracy(blacks) };
       }
+      emit('results', event.data.results);
       worker?.terminate();
       worker = null;
       break;
-
     case 'error':
       failAnalysis(event.data.message || 'Ошибка анализа');
       break;
   }
 }
 
-async function speakReport() {
-  if (!report.value) return;
-  await speak(report.value, { lang: 'ru-RU', rate: 0.9 });
+function onGraphJump(moveIndex) {
+  emit('jump', moveIndex + 1);
 }
 
-const LABELS = {
-  brilliant: '!!', great: '!', best: '★', excellent: '✓',
-  good: '·', book: '📖', inaccuracy: '?!', mistake: '?',
-  blunder: '??', forced: '⚡',
-};
-
-function classificationLabel(cls) {
-  return LABELS[cls] || cls;
+function startGuidedReview() {
+  if (!keyMoments.value.length) return;
+  guidedMode.value = true;
+  guidedPointer.value = 0;
+  emit('jump', keyMoments.value[0].fenIdx);
 }
 
-function formatEval(cp) {
-  if (cp === null || cp === undefined) return '';
-  const pawns = (cp / 100).toFixed(1);
-  return cp > 0 ? `+${pawns}` : pawns;
+function nextMoment() {
+  if (guidedPointer.value >= keyMoments.value.length - 1) {
+    exitGuided();
+    return;
+  }
+  guidedPointer.value += 1;
+  emit('jump', keyMoments.value[guidedPointer.value].fenIdx);
+}
+
+function exitGuided() {
+  guidedMode.value = false;
 }
 
 function calcAccuracy(moves) {
@@ -193,7 +260,6 @@ function calcAccuracy(moves) {
 
 onUnmounted(() => {
   worker?.terminate();
-  stop();
 });
 </script>
 
@@ -201,110 +267,119 @@ onUnmounted(() => {
 .analysis-panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  gap: 0.65rem;
+  padding: 12px 14px;
   color: var(--color-text);
+  flex-shrink: 0;
 }
 
 .analysis-panel.embedded {
-  border: none;
-  border-radius: 0;
   border-bottom: 1px solid var(--color-border);
   background: transparent;
-  padding: 12px 16px;
-  gap: 0.75rem;
 }
 
 .error-block {
-  padding: 0.75rem;
-  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  padding: 0.6rem;
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  font-size: 0.82rem;
 }
 
 .btn-retry {
-  align-self: flex-start;
-  padding: 0.35rem 0.75rem;
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
   background: var(--color-surface2);
-  color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 }
 
-.btn-analyze {
-  padding: 0.75rem 1.5rem;
+.btn-analyze, .btn-start-review {
+  width: 100%;
+  padding: 0.65rem 1rem;
   background: var(--color-accent);
   color: #fff;
   border: none;
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
   font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
 }
-.btn-analyze:hover { opacity: 0.9; }
-.btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-analyze:disabled { opacity: 0.4; }
 
-.progress-label { font-size: 0.85rem; color: var(--color-text-muted); }
+.accuracy-row {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+}
+.acc-label { font-size: 0.75rem; color: var(--color-text-muted); display: block; }
+.acc-value { font-size: 1.25rem; font-weight: 700; color: var(--color-accent); }
 
+.coach-summary {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.no-key-moments {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.progress-label { font-size: 0.8rem; color: var(--color-text-muted); }
 .progress-bar {
-  height: 6px;
+  height: 5px;
   background: var(--color-surface2);
   border-radius: 3px;
   overflow: hidden;
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
 }
-.progress-fill {
-  height: 100%;
-  background: var(--color-accent);
-  transition: width 0.3s ease;
-}
-.progress-fill.indeterminate {
-  width: 40%;
-  animation: slide 1.2s ease-in-out infinite;
-}
+.progress-fill { height: 100%; background: var(--color-accent); transition: width 0.3s; }
+.progress-fill.indeterminate { width: 40%; animation: slide 1.2s ease-in-out infinite; }
 @keyframes slide {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(350%); }
 }
 
-.move-item {
-  display: grid;
-  grid-template-columns: 40px 56px 1fr 52px;
-  gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.82rem;
-}
-.move-blunder { background: color-mix(in srgb, var(--color-danger) 15%, transparent); }
-.move-mistake { background: color-mix(in srgb, var(--color-warning) 12%, transparent); }
-.move-inaccuracy { background: color-mix(in srgb, var(--color-warning) 8%, transparent); }
-.move-brilliant { background: color-mix(in srgb, var(--color-accent) 15%, transparent); }
-.move-best { background: color-mix(in srgb, var(--color-success) 10%, transparent); }
-
-.report-block {
+.coach-box {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
   background: var(--color-surface2);
   border-radius: var(--radius-sm);
-  padding: 1rem;
 }
-.report-text { line-height: 1.6; color: var(--color-text-muted); font-size: 0.9rem; }
+.coach-avatar { font-size: 1.5rem; flex-shrink: 0; }
+.coach-text { font-size: 0.85rem; line-height: 1.45; margin: 0; }
 
-.accuracy-block { display: flex; gap: 2rem; margin: 0.75rem 0; }
-.accuracy-value { font-weight: 700; color: var(--color-accent); font-size: 1.1rem; }
+.guided-progress {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
 
-.btn-tts {
-  padding: 0.5rem 1rem;
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+.guided-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-next {
+  flex: 1;
+  padding: 0.55rem;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
   border-radius: var(--radius-sm);
-  cursor: pointer;
+  font-weight: 600;
 }
-.btn-tts:hover { border-color: var(--color-accent); }
+.btn-skip {
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
 </style>

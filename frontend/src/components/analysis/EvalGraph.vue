@@ -1,6 +1,13 @@
 <template>
   <div class="eval-graph-wrapper">
-    <canvas ref="canvasRef" :width="canvasWidth" :height="120" />
+    <canvas
+      ref="canvasRef"
+      :width="canvasWidth"
+      :height="100"
+      @click="onCanvasClick"
+      @mousemove="onCanvasMouseMove"
+      @mouseleave="onCanvasLeave"
+    />
     <!-- Подсказка при наведении -->
     <div
       v-if="tooltip.visible"

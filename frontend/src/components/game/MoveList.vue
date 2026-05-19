@@ -14,6 +14,9 @@
           :class="{ active: currentIdx === idx * 2 + 1 }"
           @click="emit('jump', idx * 2 + 1)"
         >
+          <span v-if="badge(idx * 2)" class="move-badge" :class="'badge-' + badge(idx * 2)">
+            {{ badgeIcon(badge(idx * 2)) }}
+          </span>
           {{ pair.white || '…' }}
         </button>
         <button
@@ -22,6 +25,9 @@
           :class="{ active: currentIdx === idx * 2 + 2 }"
           @click="emit('jump', idx * 2 + 2)"
         >
+          <span v-if="badge(idx * 2 + 1)" class="move-badge" :class="'badge-' + badge(idx * 2 + 1)">
+            {{ badgeIcon(badge(idx * 2 + 1)) }}
+          </span>
           {{ pair.black }}
         </button>
         <span v-else class="move-san empty" />
@@ -37,6 +43,7 @@ import { computed, ref, watch, nextTick } from 'vue';
 const props = defineProps({
   moveSans: { type: Array, default: () => [] },
   currentIdx: { type: Number, default: 0 },
+  classifications: { type: Array, default: () => [] },
   embedded: { type: Boolean, default: false },
 });
 
@@ -55,6 +62,19 @@ const movePairs = computed(() => {
   return pairs;
 });
 
+function badge(moveIndex) {
+  return props.classifications[moveIndex] || null;
+}
+
+const BADGE_ICONS = {
+  brilliant: '!!', best: '★', great: '!', excellent: '✓',
+  good: '·', book: '📖', inaccuracy: '?!', mistake: '?', blunder: '??',
+};
+
+function badgeIcon(cls) {
+  return BADGE_ICONS[cls] || '';
+}
+
 function isActiveRow(idx) {
   const w = idx * 2 + 1;
   const b = idx * 2 + 2;
@@ -63,8 +83,7 @@ function isActiveRow(idx) {
 
 watch(() => props.currentIdx, async () => {
   await nextTick();
-  const el = bodyRef.value?.querySelector('.move-san.active, .move-row.active');
-  el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  bodyRef.value?.querySelector('.move-san.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 });
 </script>
 
@@ -76,61 +95,64 @@ watch(() => props.currentIdx, async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 120px;
-  max-height: min(70vh, 560px);
+  min-height: 0;
 }
 
 .move-list.embedded {
   border: none;
   border-radius: 0;
   background: transparent;
-  min-height: 0;
-  max-height: none;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .move-list-header {
-  padding: 0.6rem 0.85rem;
-  font-size: 0.75rem;
+  padding: 8px 12px;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface2);
+  flex-shrink: 0;
 }
 
 .move-list-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 0.35rem 0;
+  padding: 4px 0;
 }
 
 .move-row {
   display: grid;
   grid-template-columns: 2rem 1fr 1fr;
-  gap: 0.25rem;
-  padding: 0.15rem 0.5rem;
+  gap: 4px;
+  padding: 2px 8px;
   align-items: center;
 }
 
 .move-row.active {
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
 
 .move-num {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--color-text-muted);
   text-align: right;
-  padding-right: 0.25rem;
 }
 
 .move-san {
-  padding: 0.35rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   text-align: left;
   border: none;
@@ -138,19 +160,27 @@ watch(() => props.currentIdx, async () => {
   font-family: inherit;
 }
 
-.move-san:hover {
-  background: var(--color-surface2);
-}
+.move-san:hover { background: var(--color-surface2); }
+.move-san.active { background: var(--color-accent); color: #fff; }
+.move-san.empty { cursor: default; }
 
-.move-san.active {
-  background: var(--color-accent);
-  color: #fff;
-  font-weight: 600;
+.move-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
-
-.move-san.empty {
-  cursor: default;
-}
+.badge-blunder { background: #dc3545; color: #fff; }
+.badge-mistake { background: #fd7e14; color: #fff; }
+.badge-inaccuracy { background: #ffc107; color: #333; }
+.badge-brilliant { background: #00bfa5; color: #fff; }
+.badge-best { background: #28a745; color: #fff; }
+.badge-great { background: #17a2b8; color: #fff; }
 
 .empty-msg {
   padding: 1rem;
