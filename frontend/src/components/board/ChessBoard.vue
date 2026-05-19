@@ -177,7 +177,7 @@ function getPiece(squareName) {
   return piece.color + piece.type.toUpperCase(); // 'wP', 'bK', etc.
 }
 
-// Пути к SVG фигурам (используем открытый набор Chess.com/Wikimedia)
+// SVG фигуры: набор Cburnett (как на Lichess / Wikimedia)
 const PIECE_IMAGES = {};
 ['w','b'].forEach(color => {
   ['P','N','B','R','Q','K'].forEach(type => {
