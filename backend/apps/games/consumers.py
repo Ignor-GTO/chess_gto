@@ -187,6 +187,10 @@ class GameConsumer(AsyncWebsocketConsumer):
             'game_over': game_over,
         }
 
+        # Прямой ответ инициатору — на случай задержек channel layer.
+        # На клиенте есть защита от дубликатов (alreadyHave по uci).
+        await self.send(json.dumps({'type': 'move', **move_payload}))
+
         await self.channel_layer.group_send(self.room_group_name, {
             'type': 'move_made',
             **move_payload,

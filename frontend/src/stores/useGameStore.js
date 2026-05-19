@@ -10,7 +10,7 @@
  *      их обновляет только в большую сторону по ply.
  */
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Chess } from 'chess.js';
 import axios from '@/plugins/axios';
 import { useAuthStore } from './useAuthStore';
@@ -57,10 +57,10 @@ export const useGameStore = defineStore('game', () => {
   const isMyTurn     = ref(false);
   const drawOffered  = ref(false);
   const isConnected  = ref(false);
+  const pendingMove  = ref(false);
 
   let ws = null;
   let wsId = 0;
-  let pendingMove = false;
   let clockTurn = null;
   let connecting = false;
   let manualClose = false;
@@ -72,7 +72,7 @@ export const useGameStore = defineStore('game', () => {
     status.value === 'active' &&
     isConnected.value &&
     isMyTurn.value &&
-    !pendingMove &&
+    !pendingMove.value &&
     !isGameOver.value,
   );
   const moveSans = computed(() => moves.value.map(m => m.san));
@@ -274,7 +274,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function disconnect() {
-    pendingMove = false;
+    pendingMove.value = false;
     closeWs(false);
     connecting = false;
     stopClock();
@@ -282,7 +282,7 @@ export const useGameStore = defineStore('game', () => {
 
   function sendMove(from, to, promotion) {
     if (!canMove.value) {
-      log('sendMove BLOCKED', { canMove: canMove.value, status: status.value, isConnected: isConnected.value, isMyTurn: isMyTurn.value, pendingMove });
+      log('sendMove BLOCKED', { canMove: canMove.value, status: status.value, isConnected: isConnected.value, isMyTurn: isMyTurn.value, pendingMove: pendingMove.value });
       return false;
     }
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -305,7 +305,7 @@ export const useGameStore = defineStore('game', () => {
       lastMove.value = { from, to };
       moves.value.push({ uci, san: moveObj.san, fen: chess.fen() });
       isMyTurn.value = false;
-      pendingMove = true;
+      pendingMove.value = true;
     } catch (err) {
       console.error('[Game] sendMove error', err);
       return false;
@@ -327,7 +327,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function applyMovePayload(data) {
-    pendingMove = false;
+    pendingMove.value = false;
     if (status.value !== 'finished') status.value = 'active';
 
     const incomingPly = fenPly(data.fen);
@@ -487,7 +487,25 @@ export const useGameStore = defineStore('game', () => {
     blackRatingChange.value = null;
     opponentName.value = '';
     opponentRating.value = 0;
+    pendingMove.value = false;
   }
+
+  // Диагностика — фиксируем переходы canMove
+  watch(canMove, (n, o) => {
+    log(`canMove ${o} → ${n}`, {
+      status: status.value,
+      connected: isConnected.value,
+      myTurn: isMyTurn.value,
+      pending: pendingMove.value,
+      over: isGameOver.value,
+      ply: moves.value.length,
+      fen: fen.value,
+    });
+  });
+
+  watch(() => fen.value, (n, o) => {
+    log(`fen ${o?.slice(0, 30)}… → ${n?.slice(0, 30)}… ply=${moves.value.length}`);
+  });
 
   return {
     gameId, status, result, resultReason,
