@@ -4,17 +4,26 @@
 import { ref, shallowRef, computed, onUnmounted, markRaw } from 'vue';
 import { Chess } from 'chess.js';
 import axios from '@/plugins/axios';
+import { playMoveSound, playGameEndSound } from '@/composables/useChessSounds';
 
 function createChess(fen) {
   return markRaw(new Chess(fen));
 }
 
+function soundForMove(moveObj, chess) {
+  playMoveSound({
+    capture: !!moveObj.captured,
+    check: chess.inCheck(),
+    castle: moveObj.flags?.includes('k') || moveObj.flags?.includes('q'),
+  });
+}
+
 export const SKILL_CONFIGS = {
-  0:  { label: '🐣 Новичок',   movetime: 250,  skillLevel: 0  },
-  5:  { label: '🙂 Любитель',  movetime: 450,  skillLevel: 5  },
-  10: { label: '😐 Средний',   movetime: 650,  skillLevel: 10 },
-  15: { label: '😤 Сильный',   movetime: 900,  skillLevel: 15 },
-  20: { label: '🤖 Эксперт',   movetime: 1200, skillLevel: 20 },
+  0:  { label: '🐣 Новичок',   movetime: 300,  skillLevel: 0  },
+  5:  { label: '🙂 Любитель',  movetime: 500,  skillLevel: 5  },
+  10: { label: '😐 Средний',   movetime: 800,  skillLevel: 10 },
+  15: { label: '😤 Сильный',   movetime: 1200, skillLevel: 15 },
+  20: { label: '🤖 Эксперт',   movetime: 1800, skillLevel: 20 },
 };
 
 export function useBotGame() {
@@ -76,6 +85,7 @@ export function useBotGame() {
 
       const uci = move.from + move.to + (moveObj.promotion || '');
       applyMove(uci, moveObj.san);
+      soundForMove(moveObj, chess.value);
       isMyTurn.value = true;
       checkGameOver();
       saveMoves();
@@ -123,6 +133,7 @@ export function useBotGame() {
 
     const uci = from + to + (moveObj.promotion || '');
     applyMove(uci, moveObj.san);
+    soundForMove(moveObj, chess.value);
     isMyTurn.value = false;
     checkGameOver();
 
@@ -164,6 +175,8 @@ export function useBotGame() {
       const winnersColor = c.turn() === 'w' ? 'black' : 'white';
       result.value = winnersColor === 'white' ? 'white_win' : 'black_win';
       resultReason.value = 'checkmate';
+      const playerWon = winnersColor === playerColor.value;
+      playGameEndSound(playerWon);
       finalizeGame();
     } else if (c.isStalemate()) {
       endDraw('stalemate');

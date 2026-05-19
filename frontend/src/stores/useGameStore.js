@@ -4,6 +4,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useAuthStore } from './useAuthStore';
+import { playMoveSound } from '@/composables/useChessSounds';
 
 export const useGameStore = defineStore('game', () => {
   const authStore = useAuthStore();
@@ -154,6 +155,11 @@ export const useGameStore = defineStore('game', () => {
         fen.value = data.fen;
         lastMove.value = { from: data.uci.slice(0, 2), to: data.uci.slice(2, 4) };
         moves.value.push({ uci: data.uci, san: data.san, fen: data.fen });
+        playMoveSound({
+          capture: data.san?.includes('x'),
+          check: data.san?.includes('+') || data.san?.includes('#'),
+          castle: data.san === 'O-O' || data.san === 'O-O-O',
+        });
         whiteClock.value = data.white_clock;
         blackClock.value = data.black_clock;
 

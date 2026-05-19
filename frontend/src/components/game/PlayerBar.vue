@@ -110,7 +110,7 @@ function formatClock(ms) {
   text-align: center;
 }
 .clock-idle    { background: var(--color-surface2); color: var(--color-text-muted); }
-.clock-active  { background: #1a2a3a; color: var(--color-text); }
+.clock-active  { background: var(--color-surface2); color: var(--color-text); }
 .clock-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
 .clock-danger  { background: rgba(239, 68, 68, 0.2); color: #ef4444; animation: blink 0.5s ease-in-out infinite; }
 

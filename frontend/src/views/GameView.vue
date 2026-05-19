@@ -1,54 +1,48 @@
 <template>
   <div class="game-view">
-    <!-- Верхняя панель: соперник -->
-    <PlayerBar
-      :name="gameStore.opponentName"
-      :rating="gameStore.opponentRating"
-      :clock="opponentClock"
-      :is-active="!gameStore.isMyTurn && gameStore.status === 'active'"
-    />
+    <div class="game-layout">
+      <div class="board-column">
+        <PlayerBar
+          :name="gameStore.opponentName"
+          :rating="gameStore.opponentRating"
+          :clock="opponentClock"
+          :is-active="!gameStore.isMyTurn && gameStore.status === 'active'"
+        />
 
-    <!-- Шахматная доска -->
-    <ChessBoard
-      :fen="gameStore.fen"
-      :player-color="gameStore.playerColor"
-      :last-move="gameStore.lastMove"
-      :is-my-turn="gameStore.isMyTurn"
-      :disabled="gameStore.isGameOver"
-      @move="onMove"
-    />
+        <ChessBoard
+          :fen="gameStore.fen"
+          :player-color="gameStore.playerColor"
+          :last-move="gameStore.lastMove"
+          :is-my-turn="gameStore.isMyTurn"
+          :disabled="gameStore.isGameOver"
+          @move="onMove"
+        />
 
-    <!-- Нижняя панель: игрок -->
-    <PlayerBar
-      :name="authStore.user?.username"
-      :rating="authStore.user?.rating"
-      :clock="myClock"
-      :is-active="gameStore.isMyTurn && gameStore.status === 'active'"
-      :is-me="true"
-    />
+        <PlayerBar
+          :name="authStore.user?.username"
+          :rating="authStore.user?.rating"
+          :clock="myClock"
+          :is-active="gameStore.isMyTurn && gameStore.status === 'active'"
+          :is-me="true"
+        />
 
-    <!-- Кнопки управления -->
-    <div class="game-controls">
-      <button @click="gameStore.resign()" :disabled="gameStore.isGameOver" class="btn-danger">
-        🏳 Сдаться
-      </button>
-      <button
-        @click="gameStore.offerDraw()"
-        :disabled="gameStore.isGameOver"
-        class="btn-secondary"
-      >
-        🤝 Ничья
-      </button>
+        <div class="game-controls">
+          <button @click="gameStore.resign()" :disabled="gameStore.isGameOver" class="btn-danger">🏳 Сдаться</button>
+          <button @click="gameStore.offerDraw()" :disabled="gameStore.isGameOver" class="btn-secondary">🤝 Ничья</button>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <MoveList :move-sans="gameStore.moveSans" :current-idx="gameStore.moves.length" />
+      </aside>
     </div>
 
-    <!-- Предложение ничьей -->
     <div v-if="gameStore.drawOffered" class="draw-offer-modal">
       <p>Соперник предлагает ничью</p>
       <button @click="gameStore.acceptDraw()" class="btn-primary">Принять</button>
       <button @click="gameStore.rejectDraw()" class="btn-secondary">Отклонить</button>
     </div>
 
-    <!-- Результат партии -->
     <GameResultModal
       v-if="gameStore.isGameOver"
       :result="gameStore.result"
@@ -67,6 +61,7 @@ import { useGameStore } from '@/stores/useGameStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import ChessBoard from '@/components/board/ChessBoard.vue';
 import PlayerBar from '@/components/game/PlayerBar.vue';
+import MoveList from '@/components/game/MoveList.vue';
 import GameResultModal from '@/components/game/GameResultModal.vue';
 import axios from '@/plugins/axios';
 
@@ -75,7 +70,6 @@ const router = useRouter();
 const gameStore = useGameStore();
 const authStore = useAuthStore();
 
-// Определяем цвет и подключаемся
 onMounted(async () => {
   const gameId = route.params.id;
   const { data } = await axios.get(`/api/games/${gameId}/`);
@@ -85,11 +79,8 @@ onMounted(async () => {
   gameStore.connect(gameId, color);
 });
 
-onUnmounted(() => {
-  gameStore.disconnect();
-});
+onUnmounted(() => gameStore.disconnect());
 
-// Ждём Celery: подтягиваем изменение рейтинга после партии
 watch(() => gameStore.isGameOver, async (over) => {
   if (!over || !gameStore.gameId) return;
   for (let i = 0; i < 8; i++) {
@@ -104,15 +95,12 @@ watch(() => gameStore.isGameOver, async (over) => {
   }
 });
 
-// Часы: мои и соперника
 const myClock = computed(() =>
-  gameStore.playerColor === 'white' ? gameStore.whiteClock : gameStore.blackClock
+  gameStore.playerColor === 'white' ? gameStore.whiteClock : gameStore.blackClock,
 );
 const opponentClock = computed(() =>
-  gameStore.playerColor === 'white' ? gameStore.blackClock : gameStore.whiteClock
+  gameStore.playerColor === 'white' ? gameStore.blackClock : gameStore.whiteClock,
 );
-
-// Изменение рейтинга после партии
 const myRatingChange = computed(() => gameStore.myRatingChange);
 
 function onMove({ from, to, promotion }) {
@@ -131,54 +119,72 @@ function startNewGame() {
 
 <style scoped>
 .game-view {
+  min-height: 100vh;
+  background: var(--color-bg);
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 100vh;
-  background: #0f0f1a;
-  padding: 1rem;
 }
 
-.game-controls {
-  display: flex;
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 560px) 240px;
   gap: 1rem;
-  margin-top: 0.5rem;
+  align-items: start;
+  width: 100%;
+  max-width: 860px;
 }
+
+.board-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.side-panel { min-width: 0; }
+
+.game-controls { display: flex; gap: 0.75rem; margin-top: 0.25rem; }
 
 .btn-danger {
   padding: 0.5rem 1rem;
-  background: #c0392b;
+  background: var(--color-danger);
   color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.btn-secondary, .btn-primary {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
 }
 .btn-secondary {
-  padding: 0.5rem 1rem;
-  background: #2c3e50;
-  color: white;
-  border: 1px solid #4a5568;
-  border-radius: 6px;
-  cursor: pointer;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 .btn-primary {
-  padding: 0.5rem 1rem;
-  background: #27ae60;
+  background: var(--color-accent);
   color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
 .draw-offer-modal {
-  background: #1a2a3a;
-  border: 1px solid #4a5568;
-  border-radius: 8px;
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1rem;
-  text-align: center;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  z-index: 50;
+}
+
+@media (max-width: 720px) {
+  .game-layout { grid-template-columns: 1fr; }
+  .side-panel { order: -1; max-height: 160px; }
 }
 </style>

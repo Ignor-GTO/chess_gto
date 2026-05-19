@@ -276,11 +276,9 @@ onUnmounted(() => {
 }
 
 .lobby-title {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-accent);
 }
 .lobby-subtitle { color: var(--color-text-muted); font-size: 1rem; }
 
@@ -334,7 +332,7 @@ onUnmounted(() => {
   transition: all 0.15s;
 }
 .tc-btn:hover { border-color: var(--color-accent); transform: translateY(-1px); }
-.tc-btn.selected { border-color: var(--color-accent); background: rgba(102,126,234,0.15); }
+.tc-btn.selected { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); }
 .tc-btn.searching { animation: pulse 1.5s ease-in-out infinite; }
 .tc-icon { font-size: 1.3rem; }
 .tc-name { font-weight: 600; font-size: 0.9rem; }
@@ -384,13 +382,13 @@ onUnmounted(() => {
 }
 .level-btn.selected, .color-btn.selected {
   border-color: var(--color-accent);
-  background: rgba(102,126,234,0.15);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
 }
 .btn-start-bot {
   width: 100%;
   margin-top: 1rem;
   padding: 0.85rem;
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent2));
+  background: var(--color-accent);
   color: white;
   border-radius: var(--radius-md);
   font-size: 1rem;

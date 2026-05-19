@@ -16,6 +16,14 @@
 
     <!-- Правая часть: тема + язык + пользователь -->
     <div class="nav-right">
+      <button
+        class="sound-btn"
+        type="button"
+        :title="soundStore.enabled ? 'Выключить звук' : 'Включить звук'"
+        @click="soundStore.toggle()"
+      >
+        {{ soundStore.enabled ? '🔊' : '🔇' }}
+      </button>
       <ThemeSwitcher />
       <div class="lang-switcher">
         <button
@@ -107,10 +115,12 @@ import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { setLanguage } from '@/plugins/i18n';
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue';
+import { useSoundStore } from '@/stores/useSoundStore';
 
 const route     = useRoute();
 const router    = useRouter();
 const authStore = useAuthStore();
+const soundStore = useSoundStore();
 const { locale } = useI18n();
 const menuOpen  = ref(false);
 
@@ -160,7 +170,20 @@ async function logout() {
   gap: 0.4rem;
   text-decoration: none;
 }
-.nav-logo span { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.nav-logo span { color: var(--color-accent); -webkit-text-fill-color: var(--color-accent); }
+
+.sound-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sound-btn:hover { border-color: var(--color-accent); }
 
 .nav-links { display: flex; gap: 1.5rem; margin-left: 1rem; }
 .nav-link {

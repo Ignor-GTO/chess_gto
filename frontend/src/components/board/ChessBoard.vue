@@ -267,9 +267,10 @@ function confirmPromotion(piece) {
   grid-template-rows: repeat(8, 1fr);
   width: 100%;
   height: 100%;
-  border: 3px solid #2c2c3e;
+  border: 3px solid var(--board-border, #403d39);
   border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
 .square {
@@ -280,27 +281,27 @@ function confirmPromotion(piece) {
   cursor: pointer;
 }
 
-.sq-light { background-color: #f0d9b5; }
-.sq-dark  { background-color: #b58863; }
+.sq-light { background-color: var(--board-light, #ebecd0); }
+.sq-dark  { background-color: var(--board-dark, #739552); }
 
-.sq-selected   { background-color: #f6f669 !important; }
-.sq-last-move  { background-color: rgba(246, 246, 105, 0.5) !important; }
-.sq-check      { background-color: rgba(220, 30, 30, 0.8) !important; }
+.sq-selected   { background-color: var(--board-selected, #f6f669) !important; }
+.sq-last-move  { background-color: var(--board-last-move, rgba(155, 199, 0, 0.41)) !important; }
+.sq-check      { background-color: var(--board-check, rgba(220, 50, 50, 0.75)) !important; }
 
 .legal-dot {
   position: absolute;
-  width: 30%;
-  height: 30%;
+  width: 28%;
+  height: 28%;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.18);
   pointer-events: none;
   z-index: 2;
 }
 .legal-dot.legal-capture {
-  width: 100%;
-  height: 100%;
+  width: 88%;
+  height: 88%;
   background: transparent;
-  border: 5px solid rgba(0, 0, 0, 0.25);
+  border: 4px solid rgba(0, 0, 0, 0.18);
   border-radius: 50%;
 }
 
@@ -321,7 +322,7 @@ function confirmPromotion(piece) {
   justify-content: space-around;
   padding: 2px 0;
   font-size: 0.7rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 .coords-left {
   position: absolute;
@@ -332,7 +333,7 @@ function confirmPromotion(piece) {
   justify-content: space-around;
   height: 100%;
   font-size: 0.7rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 480px) {
