@@ -42,6 +42,9 @@ urlpatterns = [
     path('api/users/me/',             UserMeView.as_view(),             name='user_me'),
     path('api/users/<str:username>/', UserDetailView.as_view(),         name='user_detail'),
 
+    # ── Партии vs бот (до router — иначе games/<pk> перехватывает "bot") ──
+    *bot_urlpatterns,
+
     # ── Партии + Лобби ───────────────────────────────────
     path('api/', include(router.urls)),
 
@@ -60,7 +63,7 @@ urlpatterns = [
     # ── i18n ─────────────────────────────────────────────
     path('i18n/', include('django.conf.urls.i18n')),
 
-] + bot_urlpatterns
+]
 
 # Медиафайлы в dev режиме
 if settings.DEBUG:

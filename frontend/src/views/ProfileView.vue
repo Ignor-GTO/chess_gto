@@ -160,12 +160,17 @@ onMounted(async () => {
     onlineGames.value = games.slice(0, 10);
 
     if (isOwnProfile.value) {
-      const [{ data: botData }, { data: stats }] = await Promise.all([
-        axios.get('/api/games/bot/'),
-        axios.get('/api/games/bot/stats/'),
-      ]);
-      botGames.value = (botData || []).slice(0, 10).map(g => ({ ...g, isBot: true }));
-      botStats.value = stats;
+      try {
+        const [{ data: botData }, { data: stats }] = await Promise.all([
+          axios.get('/api/games/bot/'),
+          axios.get('/api/games/bot/stats/'),
+        ]);
+        botGames.value = (botData || []).slice(0, 10).map(g => ({ ...g, isBot: true }));
+        botStats.value = stats;
+      } catch {
+        botGames.value = [];
+        botStats.value = null;
+      }
     }
   } finally {
     loading.value = false;
