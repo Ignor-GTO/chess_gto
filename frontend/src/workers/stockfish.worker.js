@@ -11,21 +11,25 @@
  *   - "go depth N"→ рассчитать на глубину N
  */
 
-// Загружаем Stockfish WASM (stockfish.js из CDN или локальный файл)
-importScripts('/stockfish/stockfish.js');
+// Stockfish.js v18 — вложенный Worker (importScripts не экспортирует Stockfish)
+const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#/stockfish/stockfish.wasm,worker';
 
 let stockfish = null;
 let resolveEval = null;
-let currentDepth = 18; // глубина анализа (12–18 для баланса скорости/точности)
-
-// ─── Инициализация ─────────────────────────────────────────────────────────
+let currentDepth = 18;
 
 function initEngine() {
-  stockfish = Stockfish({
-    locateFile: (file) =>
-      file.includes('.wasm') ? '/stockfish/stockfish.wasm' : file,
-  });
-  stockfish.onmessage = handleEngineMessage;
+  if (stockfish) {
+    stockfish.terminate();
+  }
+  stockfish = new Worker(STOCKFISH_WORKER_URL);
+  stockfish.onmessage = (event) => {
+    const line = typeof event.data === 'string' ? event.data : '';
+    handleEngineMessage({ data: line });
+  };
+  stockfish.onerror = () => {
+    self.postMessage({ type: 'error', message: 'Stockfish engine failed to load' });
+  };
   stockfish.postMessage('uci');
   stockfish.postMessage('setoption name Threads value 2');
   stockfish.postMessage('setoption name Hash value 128');
@@ -73,6 +77,7 @@ self.onmessage = async function (event) {
   switch (type) {
     case 'init':
       initEngine();
+      attachEvalTracker();
       break;
 
     case 'analyze_game':
@@ -176,15 +181,18 @@ function waitForEval() {
   });
 }
 
-// Обновляем lastCp при каждом "info score"
-stockfish && (stockfish.onmessage = function(event) {
-  const line = typeof event === 'string' ? event : event.data;
-  const cpMatch = line.match(/score cp (-?\d+)/);
-  const mateMatch = line.match(/score mate (-?\d+)/);
-  if (cpMatch) lastCp = parseInt(cpMatch[1]);
-  if (mateMatch) lastMate = parseInt(mateMatch[1]);
-  handleEngineMessage(event);
-});
+// Обновляем lastCp при каждом "info score" (после initEngine)
+function attachEvalTracker() {
+  if (!stockfish) return;
+  stockfish.onmessage = (event) => {
+    const line = typeof event.data === 'string' ? event.data : '';
+    const cpMatch = line.match(/score cp (-?\d+)/);
+    const mateMatch = line.match(/score mate (-?\d+)/);
+    if (cpMatch) lastCp = parseInt(cpMatch[1]);
+    if (mateMatch) lastMate = parseInt(mateMatch[1]);
+    handleEngineMessage({ data: line });
+  };
+}
 
 // ─── Классификация ходов (centipawn разница) ─────────────────────────────────
 

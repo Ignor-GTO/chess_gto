@@ -1,15 +1,9 @@
 /**
  * botWorker.js — Web Worker для ходов бота (Stockfish).
  *
- * Отдельный воркер от аналитического — чтобы не мешать анализу.
- * Принимает позицию → возвращает лучший ход с заданным уровнем.
+ * Stockfish.js v18 запускается как вложенный Worker (не importScripts).
  */
-importScripts('/stockfish/stockfish.js');
-
-const STOCKFISH_OPTS = {
-  locateFile: (file) =>
-    file.includes('.wasm') ? '/stockfish/stockfish.wasm' : file,
-};
+const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#/stockfish/stockfish.wasm,worker';
 
 let engine = null;
 let resolveMove = null;
@@ -17,11 +11,19 @@ let currentSkillLevel = 10;
 
 function init(skillLevel = 10) {
   currentSkillLevel = skillLevel;
-  engine = Stockfish(STOCKFISH_OPTS);
-  engine.onmessage = handleMessage;
+  if (engine) {
+    engine.terminate();
+  }
+  engine = new Worker(STOCKFISH_WORKER_URL);
+  engine.onmessage = (event) => {
+    const line = typeof event.data === 'string' ? event.data : '';
+    handleMessage({ data: line });
+  };
+  engine.onerror = () => {
+    self.postMessage({ type: 'error', message: 'Stockfish engine failed to load' });
+  };
   engine.postMessage('uci');
   engine.postMessage(`setoption name Skill Level value ${skillLevel}`);
-  // Ограничиваем глубину для слабых уровней
   if (skillLevel < 5) {
     engine.postMessage('setoption name UCI_LimitStrength value true');
     engine.postMessage(`setoption name UCI_Elo value ${600 + skillLevel * 100}`);
@@ -51,20 +53,20 @@ self.onmessage = function(event) {
       break;
 
     case 'get_move':
-      // payload: { moves: ['e2e4', ...], movetime: 500 }
       if (!engine) init(currentSkillLevel);
-      const movesStr = payload.moves.length
-        ? `position startpos moves ${payload.moves.join(' ')}`
-        : 'position startpos';
+      {
+        const movesStr = payload.moves.length
+          ? `position startpos moves ${payload.moves.join(' ')}`
+          : 'position startpos';
 
-      engine.postMessage(movesStr);
-      // movetime в мс — время на обдумывание
-      engine.postMessage(`go movetime ${payload.movetime || 500}`);
+        engine.postMessage(movesStr);
+        engine.postMessage(`go movetime ${payload.movetime || 500}`);
 
-      new Promise((resolve) => { resolveMove = resolve; })
-        .then(move => {
-          self.postMessage({ type: 'bot_move', uci: move });
-        });
+        new Promise((resolve) => { resolveMove = resolve; })
+          .then(move => {
+            self.postMessage({ type: 'bot_move', uci: move });
+          });
+      }
       break;
 
     case 'set_skill':

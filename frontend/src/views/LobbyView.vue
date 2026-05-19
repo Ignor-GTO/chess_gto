@@ -226,16 +226,27 @@ async function fetchOnlineCount() {
   }
 }
 
-function connectPresence() {
-  const token = authStore.accessToken;
+async function connectPresence() {
+  if (!authStore.isAuthenticated) return;
+
+  let token = authStore.accessToken;
   if (!token) return;
 
   presenceWs = new WebSocket(`${wsBaseUrl()}/ws/presence/?token=${token}`);
+
   presenceWs.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'online_count') onlineCount.value = data.count;
   };
-  presenceWs.onclose = () => {
+
+  presenceWs.onclose = async (event) => {
+    if (event.code === 4001) {
+      const fresh = await authStore.refreshAccessToken();
+      if (fresh) {
+        connectPresence();
+        return;
+      }
+    }
     setTimeout(connectPresence, 5000);
   };
 }

@@ -17,6 +17,7 @@ from apps.games.presence import get_online_count
 class OnlineCountView(APIView):
     """GET /api/users/online-count/ — количество онлайн пользователей."""
     permission_classes = [AllowAny]
+    authentication_classes = []  # не отклонять запрос при просроченном JWT в заголовке
 
     def get(self, request):
         return Response({'count': get_online_count()})

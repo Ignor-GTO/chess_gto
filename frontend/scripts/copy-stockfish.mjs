@@ -31,7 +31,7 @@ const wasmLocal = join(bin, WASM_NAME);
 
 if (existsSync(wasmLocal)) {
   cpSync(wasmLocal, wasmDest);
-  console.log('[copy-stockfish] copied local wasm');
+  console.log('[copy-stockfish] copied', WASM_NAME, '→ public/stockfish/stockfish.wasm');
 } else if (!existsSync(wasmDest)) {
   console.log('[copy-stockfish] downloading wasm…');
   await new Promise((resolve, reject) => {
