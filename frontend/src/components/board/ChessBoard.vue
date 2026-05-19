@@ -115,8 +115,13 @@ const chess = ref(new Chess(props.fen));
 
 // Реактивное обновление при смене FEN
 watch(() => props.fen, (newFen) => {
-  chess.value = new Chess(newFen);
-  selectedSquare.value = null;
+  if (typeof newFen !== 'string' || !newFen) return;
+  try {
+    chess.value = new Chess(newFen);
+    selectedSquare.value = null;
+  } catch {
+    // игнорируем некорректный FEN
+  }
 });
 
 // ─── Вычисляемые данные ──────────────────────────────────────────────────────
@@ -226,6 +231,15 @@ function tryMove(from, to, promotion) {
 
   if (isPromotion && !promotion) {
     pendingPromotion.value = { from, to };
+    return;
+  }
+
+  const moveInput = { from, to };
+  if (isPromotion) moveInput.promotion = promotion || 'q';
+
+  const applied = chess.value.move(moveInput);
+  if (!applied) {
+    selectedSquare.value = null;
     return;
   }
 

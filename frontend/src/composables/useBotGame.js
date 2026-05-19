@@ -16,22 +16,23 @@ export const SKILL_CONFIGS = {
 };
 
 export function useBotGame() {
-  const chess         = ref(new Chess());
-  const fen           = ref(chess.value.fen());
-  const moves         = ref([]);
-  const lastMove      = ref(null);
-  const playerColor   = ref('white');
-  const skillLevel    = ref(10);
-  const isMyTurn      = ref(true);
-  const isGameOver    = ref(false);
-  const result        = ref(null);
-  const resultReason  = ref(null);
-  const isBotThinking = ref(false);
-  const engineError   = ref(null);
+  const chess          = ref(new Chess());
+  const fen            = ref(chess.value.fen());
+  const moves          = ref([]);
+  const lastMove       = ref(null);
+  const playerColor    = ref('white');
+  const skillLevel     = ref(10);
+  const isMyTurn       = ref(true);
+  const isGameOver     = ref(false);
+  const result         = ref(null);
+  const resultReason   = ref(null);
+  const isBotThinking  = ref(false);
+  const isEngineLoading = ref(false);
+  const engineError    = ref(null);
 
-  let botWorker   = null;
-  let gameId      = null;
-  let engineReady = false;
+  let botWorker    = null;
+  let gameId       = null;
+  let engineReady  = false;
   let pendingBotMove = false;
 
   const skillConfig = computed(() => SKILL_CONFIGS[skillLevel.value] || SKILL_CONFIGS[10]);
@@ -39,14 +40,31 @@ export function useBotGame() {
   const moveUcis    = computed(() => moves.value.map(m => m.uci));
   const turnLabel   = computed(() => {
     if (isGameOver.value) return '';
+    if (isEngineLoading.value) return 'Загрузка движка…';
     if (isBotThinking.value) return 'Бот думает…';
     return isMyTurn.value ? 'Ваш ход' : 'Ход бота';
   });
 
+  function ensureEngine() {
+    if (botWorker) return;
+
+    isEngineLoading.value = true;
+    engineError.value = null;
+    engineReady = false;
+
+    botWorker = new Worker(STOCKFISH_WORKER_URL);
+    botWorker.onmessage = handleEngineLine;
+    botWorker.onerror = () => {
+      engineError.value = 'Не удалось загрузить движок Stockfish';
+      isEngineLoading.value = false;
+      isBotThinking.value = false;
+    };
+    botWorker.postMessage('uci');
+  }
+
   function startGame(color = 'white', skill = 10) {
     cleanupWorker();
     engineError.value = null;
-    engineReady = false;
     pendingBotMove = false;
 
     playerColor.value = color;
@@ -59,18 +77,14 @@ export function useBotGame() {
     result.value = null;
     resultReason.value = null;
     isMyTurn.value = color === 'white';
-    isBotThinking.value = color === 'black';
+    isBotThinking.value = false;
+    isEngineLoading.value = false;
 
-    botWorker = new Worker(STOCKFISH_WORKER_URL);
-    botWorker.onmessage = handleEngineLine;
-    botWorker.onerror = () => {
-      engineError.value = 'Не удалось загрузить движок Stockfish';
-      isBotThinking.value = false;
-    };
-    botWorker.postMessage('uci');
-
+    // Stockfish (~7 MB WASM) грузим только когда нужен ход бота
     if (color === 'black') {
+      ensureEngine();
       pendingBotMove = true;
+      isBotThinking.value = true;
     }
 
     createGameRecord();
@@ -89,7 +103,7 @@ export function useBotGame() {
 
   function handleEngineLine(event) {
     const line = typeof event.data === 'string' ? event.data : '';
-    if (!line) return;
+    if (!line || line.startsWith('info ')) return;
 
     if (line === 'uciok') {
       configureEngine(skillLevel.value);
@@ -98,6 +112,7 @@ export function useBotGame() {
 
     if (line === 'readyok') {
       engineReady = true;
+      isEngineLoading.value = false;
       if (pendingBotMove) {
         pendingBotMove = false;
         requestBotMove();
@@ -110,6 +125,7 @@ export function useBotGame() {
       if (!uci || uci === '(none)') {
         isBotThinking.value = false;
         engineError.value = 'Бот не смог найти ход';
+        isMyTurn.value = true;
         return;
       }
       applyBotMove(uci);
@@ -139,7 +155,9 @@ export function useBotGame() {
   }
 
   function requestBotMove() {
-    if (!botWorker || isGameOver.value || isMyTurn.value) return;
+    if (isGameOver.value || isMyTurn.value) return;
+
+    ensureEngine();
 
     if (!engineReady) {
       pendingBotMove = true;
@@ -244,6 +262,7 @@ export function useBotGame() {
 
   async function finalizeGame() {
     isBotThinking.value = false;
+    isEngineLoading.value = false;
     botWorker?.postMessage('stop');
     if (!gameId) return;
     try {
@@ -261,6 +280,7 @@ export function useBotGame() {
     botWorker = null;
     engineReady = false;
     pendingBotMove = false;
+    isEngineLoading.value = false;
   }
 
   function cleanup() {
@@ -272,8 +292,8 @@ export function useBotGame() {
   return {
     fen, moves, lastMove, moveUcis, moveSans,
     playerColor, skillLevel, skillConfig,
-    isMyTurn, isGameOver, result, resultReason, isBotThinking,
-    engineError, turnLabel,
+    isMyTurn, isGameOver, result, resultReason,
+    isBotThinking, isEngineLoading, engineError, turnLabel,
     startGame, playerMove, resign, cleanup,
     SKILL_CONFIGS,
   };

@@ -8,7 +8,7 @@
       :is-bot="true"
     />
 
-    <div v-if="!isGameOver" class="turn-indicator" :class="{ 'my-turn': isMyTurn }">
+    <div v-if="!isGameOver" class="turn-indicator" :class="{ 'my-turn': isMyTurn && !isEngineLoading }">
       {{ turnLabel }}
     </div>
 
@@ -16,8 +16,8 @@
       :fen="fen"
       :player-color="playerColor"
       :last-move="lastMove"
-      :is-my-turn="isMyTurn"
-      :disabled="isGameOver"
+      :is-my-turn="isMyTurn && !isEngineLoading"
+      :disabled="isGameOver || isEngineLoading"
       @move="onPlayerMove"
     />
 
@@ -34,7 +34,7 @@
     </div>
 
     <div class="game-controls">
-      <button @click="resign()" :disabled="isGameOver" class="btn-danger">
+      <button @click="game.resign()" :disabled="isGameOver" class="btn-danger">
         🏳 Сдаться
       </button>
       <button @click="newGame" class="btn-secondary">
@@ -66,29 +66,36 @@ import GameResultModal from '@/components/game/GameResultModal.vue';
 const route  = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-
-const {
-  fen, lastMove, playerColor, skillLevel, skillConfig,
-  isMyTurn, isGameOver, result, resultReason,
-  engineError, turnLabel, moveUcis,
-  startGame, playerMove, resign, cleanup,
-} = useBotGame();
+const game = useBotGame();
 
 const skill = Number(route.query.skill ?? 10);
 const color = route.query.color || 'white';
 
-const botName = computed(() => `🤖 Stockfish ${skillConfig.value.label}`);
+const fen = computed(() => game.fen.value);
+const lastMove = computed(() => game.lastMove.value);
+const playerColor = computed(() => game.playerColor.value);
+const skillLevel = computed(() => game.skillLevel.value);
+const isMyTurn = computed(() => game.isMyTurn.value);
+const isGameOver = computed(() => game.isGameOver.value);
+const isEngineLoading = computed(() => game.isEngineLoading.value);
+const result = computed(() => game.result.value);
+const resultReason = computed(() => game.resultReason.value);
+const engineError = computed(() => game.engineError.value);
+const turnLabel = computed(() => game.turnLabel.value);
+const moveUcis = computed(() => game.moveUcis.value);
+
+const botName = computed(() => `🤖 Stockfish ${game.skillConfig.value.label}`);
 const botRating = computed(() => {
   const ratings = { 0: 800, 5: 1200, 10: 1600, 15: 2000, 20: 2500 };
   return ratings[skillLevel.value] || 1500;
 });
 
 onMounted(() => {
-  startGame(color, skill);
+  game.startGame(color, skill);
 });
 
 function onPlayerMove({ from, to, promotion }) {
-  playerMove(from, to, promotion);
+  game.playerMove(from, to, promotion);
 }
 
 function goToAnalysis() {
@@ -99,7 +106,7 @@ function goToAnalysis() {
 }
 
 function newGame() {
-  cleanup();
+  game.cleanup();
   router.push('/lobby');
 }
 </script>
