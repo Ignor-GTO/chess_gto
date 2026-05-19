@@ -1,64 +1,72 @@
 <template>
-  <div class="analysis-view">
-    <div class="analysis-header">
+  <div class="analysis-page">
+    <header class="analysis-topbar">
       <button @click="router.back()" class="btn-back">← Назад</button>
       <h1>{{ $t('analysis.title') }}</h1>
-      <span class="game-info" v-if="gameInfo">
-        {{ gameInfo.white }} vs {{ gameInfo.black }}
-      </span>
-    </div>
+      <span v-if="gameInfo" class="game-info">{{ gameInfo.white }} vs {{ gameInfo.black }}</span>
+    </header>
 
-    <div class="analysis-layout">
-      <div class="board-column">
-        <ChessBoard
-          :fen="currentFen"
-          player-color="white"
-          :last-move="currentLastMove"
-          :disabled="true"
-          :is-my-turn="false"
-          fluid
-        />
-
-        <div v-if="captureHint" class="capture-hint">
-          {{ captureHint }}
+    <div class="analysis-body">
+      <!-- Левая колонка: доска (как Chess.com) -->
+      <section class="board-section">
+        <div v-if="gameInfo" class="player-strip player-top">
+          <span class="player-dot white"></span>
+          <span class="player-name">{{ gameInfo.white }}</span>
         </div>
 
-        <div class="move-nav">
-          <button @click="jumpTo(0)" :disabled="currentMoveIdx === 0" title="В начало">⏮</button>
-          <button @click="jumpTo(currentMoveIdx - 1)" :disabled="currentMoveIdx === 0" title="Назад">◀</button>
-          <span class="move-counter">{{ currentMoveIdx }} / {{ allFens.length - 1 }}</span>
-          <button @click="jumpTo(currentMoveIdx + 1)" :disabled="currentMoveIdx >= allFens.length - 1" title="Вперёд">▶</button>
-          <button @click="jumpTo(allFens.length - 1)" :disabled="currentMoveIdx >= allFens.length - 1" title="В конец">⏭</button>
+        <div class="board-frame">
+          <ChessBoard
+            :fen="currentFen"
+            player-color="white"
+            :last-move="currentLastMove"
+            :disabled="true"
+            :is-my-turn="false"
+            fluid
+            hide-coords
+          />
         </div>
 
-        <div class="review-controls">
-          <button
-            class="btn-review"
-            :disabled="!canStepBeforeOpponent"
-            @click="stepBeforeOpponent"
-            title="Показать позицию до хода соперника"
-          >
-            ↩ До хода соперника
-          </button>
-          <button
-            class="btn-review"
-            :disabled="!canStepAfterOpponent"
-            @click="stepAfterOpponent"
-            title="Показать ход соперника (взятие)"
-          >
-            ▶ Ход соперника
-          </button>
+        <div v-if="gameInfo" class="player-strip player-bottom">
+          <span class="player-dot black"></span>
+          <span class="player-name">{{ gameInfo.black }}</span>
         </div>
-      </div>
 
-      <div class="side-column">
-        <MoveList
-          :move-sans="moveSans"
-          :current-idx="currentMoveIdx"
-          @jump="jumpTo"
-        />
-        <AnalysisPanel :moves="moveUcis" :move-sans="moveSans" />
-      </div>
+        <p v-if="captureHint" class="capture-hint">{{ captureHint }}</p>
+      </section>
+
+      <!-- Правая колонка: отчёт + ходы + навигация -->
+      <aside class="report-panel">
+        <div class="panel-head">Отчёт по партии</div>
+
+        <div class="panel-scroll">
+          <AnalysisPanel :moves="moveUcis" :move-sans="moveSans" embedded />
+
+          <MoveList
+            embedded
+            :move-sans="moveSans"
+            :current-idx="currentMoveIdx"
+            @jump="jumpTo"
+          />
+        </div>
+
+        <div class="panel-footer">
+          <div class="move-nav">
+            <button @click="jumpTo(0)" :disabled="currentMoveIdx === 0" title="В начало">⏮</button>
+            <button @click="jumpTo(currentMoveIdx - 1)" :disabled="currentMoveIdx === 0" title="Назад">◀</button>
+            <span class="move-counter">{{ currentMoveIdx }} / {{ allFens.length - 1 }}</span>
+            <button @click="jumpTo(currentMoveIdx + 1)" :disabled="currentMoveIdx >= allFens.length - 1" title="Вперёд">▶</button>
+            <button @click="jumpTo(allFens.length - 1)" :disabled="currentMoveIdx >= allFens.length - 1" title="В конец">⏭</button>
+          </div>
+          <div class="review-row">
+            <button class="btn-review" :disabled="!canStepBeforeOpponent" @click="stepBeforeOpponent">
+              ↩ До хода соперника
+            </button>
+            <button class="btn-review" :disabled="!canStepAfterOpponent" @click="stepAfterOpponent">
+              ▶ Ход соперника
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
@@ -78,7 +86,6 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
 const PIECE_LABELS = { p: 'пешку', n: 'коня', b: 'слона', r: 'ладью', q: 'ферзя', k: 'короля' };
 
 const gameInfo       = ref(null);
@@ -133,6 +140,7 @@ onMounted(async () => {
 
   if (queryMoves) {
     buildFromUcis(queryMoves.split(',').filter(Boolean));
+    gameInfo.value = { white: 'Белые', black: 'Чёрные' };
   } else if (gameId === 'bot' && botId) {
     try {
       const { data } = await axios.get(`/api/games/bot/${botId}/detail/`);
@@ -156,8 +164,8 @@ onMounted(async () => {
       if (data.white_player?.id === meId) playerColor.value = 'white';
       else if (data.black_player?.id === meId) playerColor.value = 'black';
       gameInfo.value = {
-        white: data.white_player?.username,
-        black: data.black_player?.username,
+        white: data.white_player?.username || 'Белые',
+        black: data.black_player?.username || 'Чёрные',
       };
       buildFromUcis(data.moves.map(m => m.uci), data.moves.map(m => m.san));
     } catch (err) {
@@ -183,7 +191,6 @@ function buildFromUcis(ucis, sans = []) {
       sanList.push(sans[i] || move.san);
       metaList.push({
         san: move.san,
-        uci: uci.slice(0, 2) + uci.slice(2, 4) + (move.promotion || ''),
         color: move.color,
         captured: move.captured || null,
       });
@@ -201,126 +208,205 @@ function jumpTo(idx) {
   currentMoveIdx.value = Math.max(0, Math.min(idx, allFens.value.length - 1));
 }
 
-/** Позиция до хода соперника — видно фигуру до взятия */
 function stepBeforeOpponent() {
-  if (!canStepBeforeOpponent.value) return;
-  jumpTo(currentMoveIdx.value - 1);
+  if (canStepBeforeOpponent.value) jumpTo(currentMoveIdx.value - 1);
 }
 
-/** Показать ход соперника — видно взятие */
 function stepAfterOpponent() {
-  if (!canStepAfterOpponent.value) return;
-  jumpTo(currentMoveIdx.value + 1);
+  if (canStepAfterOpponent.value) jumpTo(currentMoveIdx.value + 1);
 }
 </script>
 
 <style scoped>
-.analysis-view {
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 1rem;
+.analysis-page {
   min-height: 100vh;
-  overflow-x: hidden;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
 }
 
-.analysis-header {
+.analysis-topbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
 }
-.analysis-header h1 { font-size: 1.25rem; font-weight: 700; }
-.game-info { color: var(--color-text-muted); font-size: 0.85rem; margin-left: auto; }
+
+.analysis-topbar h1 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.game-info {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
 
 .btn-back {
-  padding: 0.4rem 0.8rem;
-  background: var(--color-surface);
+  padding: 6px 12px;
+  background: var(--color-surface2);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+  font-size: 0.85rem;
 }
 
-.analysis-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
-  gap: 1rem;
-  align-items: start;
+.analysis-body {
+  flex: 1;
+  display: flex;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.board-column {
+/* ─── Доска слева ─── */
+.board-section {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-  width: 100%;
-  padding-left: 1rem;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  overflow: hidden;
 }
 
+.board-frame {
+  width: min(100%, calc(100vh - 220px), 640px);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+  max-height: calc(100vh - 220px);
+}
+
+.player-strip {
+  width: min(100%, calc(100vh - 220px), 640px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.player-top { border-radius: var(--radius-sm) var(--radius-sm) 0 0; border-bottom: none; }
+.player-bottom { border-radius: 0 0 var(--radius-sm) var(--radius-sm); border-top: none; margin-bottom: 8px; }
+
+.player-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+}
+.player-dot.white { background: #fff; }
+.player-dot.black { background: #222; }
+
 .capture-hint {
-  font-size: 0.85rem;
+  margin-top: 8px;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--color-warning);
   text-align: center;
-  padding: 0.35rem 0.5rem;
-  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface));
-  border-radius: var(--radius-sm);
+}
+
+/* ─── Панель справа (Chess.com style) ─── */
+.report-panel {
+  flex: 0 0 clamp(300px, 32vw, 380px);
+  width: clamp(300px, 32vw, 380px);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  min-height: 0;
+}
+
+.panel-head {
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-footer {
+  flex-shrink: 0;
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .move-nav {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  gap: 6px;
 }
+
 .move-nav button {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text);
   border-radius: var(--radius-sm);
+  font-size: 0.85rem;
 }
 .move-nav button:disabled { opacity: 0.3; }
+
 .move-counter {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--color-text-muted);
-  min-width: 4rem;
+  min-width: 72px;
   text-align: center;
 }
 
-.review-controls {
+.review-row {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .btn-review {
   flex: 1;
-  min-width: 140px;
-  padding: 0.45rem 0.6rem;
-  font-size: 0.8rem;
+  padding: 8px 6px;
+  font-size: 0.75rem;
   background: var(--color-surface);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  cursor: pointer;
 }
-.btn-review:hover:not(:disabled) {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-.btn-review:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-review:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
+.btn-review:disabled { opacity: 0.35; }
 
-.side-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-@media (max-width: 768px) {
-  .analysis-layout { grid-template-columns: 1fr; }
-  .board-column { padding-left: 0; max-width: 100%; }
+@media (max-width: 860px) {
+  .analysis-body { flex-direction: column; overflow-y: auto; }
+  .report-panel {
+    flex: none;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    max-height: 50vh;
+  }
+  .board-section { padding: 12px; }
+  .board-frame { width: min(100vw - 24px, 480px); max-height: min(100vw - 24px, 480px); }
+  .player-strip { width: min(100vw - 24px, 480px); }
 }
 </style>

@@ -23,7 +23,9 @@ const route = useRoute();
 const { locale } = useI18n();
 
 const showNav = computed(() =>
-  !route.path.startsWith('/game/') && !route.path.startsWith('/admin')
+  !route.path.startsWith('/game/') &&
+  !route.path.startsWith('/admin') &&
+  !route.path.startsWith('/analysis')
 );
 </script>
 

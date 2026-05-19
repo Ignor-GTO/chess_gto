@@ -1,5 +1,5 @@
 <template>
-  <div class="analysis-panel">
+  <div class="analysis-panel" :class="{ embedded }">
     <div v-if="errorMsg" class="error-block">
       ⚠️ {{ errorMsg }}
       <button @click="startAnalysis" class="btn-retry">Повторить</button>
@@ -72,6 +72,7 @@ import { useTTS } from '@/composables/useTTS';
 const props = defineProps({
   moves: { type: Array, default: () => [] },
   moveSans: { type: Array, default: () => [] },
+  embedded: { type: Boolean, default: false },
 });
 
 const { speak, stop, isSpeaking } = useTTS();
@@ -206,6 +207,15 @@ onUnmounted(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text);
+}
+
+.analysis-panel.embedded {
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  padding: 12px 16px;
+  gap: 0.75rem;
 }
 
 .error-block {

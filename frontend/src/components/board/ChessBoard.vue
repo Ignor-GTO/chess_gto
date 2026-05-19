@@ -1,13 +1,13 @@
 <template>
   <div
     class="chess-board-wrapper"
-    :class="{ flipped: isFlipped, fluid }"
+    :class="{ flipped: isFlipped, fluid, 'no-coords': hideCoords }"
     ref="boardRef"
   >
-    <div class="coords-bottom">
+    <div class="coords-bottom" v-if="!hideCoords">
       <span v-for="f in files" :key="f">{{ f }}</span>
     </div>
-    <div class="coords-left">
+    <div class="coords-left" v-if="!hideCoords">
       <span v-for="r in ranks" :key="r">{{ r }}</span>
     </div>
 
@@ -91,6 +91,8 @@ const props = defineProps({
   disabled:    { type: Boolean, default: false },
   /** Вписать доску в ширину родителя (для анализа и боковой панели) */
   fluid:       { type: Boolean, default: false },
+  /** Без координат снаружи — компактный режим анализа */
+  hideCoords:  { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['move']);
@@ -266,7 +268,19 @@ function confirmPromotion(piece) {
 
 .chess-board-wrapper.fluid {
   width: 100%;
+  height: 100%;
   max-width: 100%;
+  max-height: 100%;
+}
+
+.chess-board-wrapper.fluid.no-coords {
+  display: flex;
+  flex-direction: column;
+}
+
+.chess-board-wrapper.fluid.no-coords .board-grid {
+  flex: 1;
+  min-height: 0;
 }
 
 .board-grid {

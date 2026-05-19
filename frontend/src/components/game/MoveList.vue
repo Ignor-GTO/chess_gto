@@ -1,5 +1,5 @@
 <template>
-  <div class="move-list">
+  <div class="move-list" :class="{ embedded }">
     <div class="move-list-header">Ходы</div>
     <div class="move-list-body" ref="bodyRef">
       <div
@@ -37,6 +37,7 @@ import { computed, ref, watch, nextTick } from 'vue';
 const props = defineProps({
   moveSans: { type: Array, default: () => [] },
   currentIdx: { type: Number, default: 0 },
+  embedded: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['jump']);
@@ -75,8 +76,17 @@ watch(() => props.currentIdx, async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 200px;
+  min-height: 120px;
   max-height: min(70vh, 560px);
+}
+
+.move-list.embedded {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  min-height: 0;
+  max-height: none;
+  flex: 1;
 }
 
 .move-list-header {
