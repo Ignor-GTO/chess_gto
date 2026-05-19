@@ -1,10 +1,42 @@
 """
-API для партий против бота: создание, список, обновление.
+API для партий против бота: создание, список, обновление, статистика.
 """
+from django.db.models import Q
 from rest_framework import generics, permissions
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.utils import timezone
 from .bot_models import BotGame
+
+
+def compute_bot_stats(user):
+    """Статистика vs бот — отдельно от Glicko-2 рейтинга."""
+    finished = BotGame.objects.filter(player=user, status='finished')
+    wins = finished.filter(
+        Q(player_color='white', result='white_win') |
+        Q(player_color='black', result='black_win')
+    ).count()
+    losses = finished.filter(
+        Q(player_color='white', result='black_win') |
+        Q(player_color='black', result='white_win')
+    ).count()
+    draws = finished.filter(result='draw').count()
+    played = wins + losses + draws
+    return {
+        'games_played': played,
+        'games_won': wins,
+        'games_lost': losses,
+        'games_drawn': draws,
+        'win_rate': round(wins / played * 100, 1) if played else 0,
+    }
+
+
+class BotStatsView(APIView):
+    """GET /api/games/bot/stats/ — статистика партий vs бот (не влияет на рейтинг)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(compute_bot_stats(request.user))
 
 
 class BotGameSerializer:

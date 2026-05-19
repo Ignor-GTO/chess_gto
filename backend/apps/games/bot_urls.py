@@ -9,6 +9,7 @@ from apps.games.bot_views import (
     BotGameDetailView,
     BotGameCreateView,
     BotGameUpdateView,
+    BotStatsView,
 )
 from apps.games.presence import get_online_count
 
@@ -22,6 +23,7 @@ class OnlineCountView(APIView):
 
 
 bot_urlpatterns = [
+    path('api/games/bot/stats/', BotStatsView.as_view(), name='bot_game_stats'),
     path('api/games/bot/', BotGameListView.as_view(), name='bot_game_list'),
     path('api/games/bot/create/', BotGameCreateView.as_view(), name='bot_game_create'),
     path('api/games/bot/<uuid:pk>/', BotGameUpdateView.as_view(), name='bot_game_update'),

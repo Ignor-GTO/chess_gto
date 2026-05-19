@@ -556,7 +556,7 @@
       "label": "OnlineCountView",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_urls.py",
-      "source_location": "L16",
+      "source_location": "L17",
       "id": "games_bot_urls_onlinecountview",
       "community": 4,
       "norm_label": "onlinecountview"
@@ -574,7 +574,7 @@
       "label": ".get()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_urls.py",
-      "source_location": "L20",
+      "source_location": "L21",
       "id": "games_bot_urls_onlinecountview_get",
       "community": 4,
       "norm_label": ".get()"
@@ -592,8 +592,8 @@
       "label": "GET /api/users/online-count/ \u2014 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043e\u043d\u043b\u0430\u0439\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_urls.py",
-      "source_location": "L17",
-      "id": "games_bot_urls_rationale_17",
+      "source_location": "L18",
+      "id": "games_bot_urls_rationale_18",
       "community": 4,
       "norm_label": "get /api/users/online-count/ \u2014 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043e\u043d\u043b\u0430\u0438\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0438."
     },
@@ -607,10 +607,37 @@
       "norm_label": "bot_views.py"
     },
     {
+      "label": "compute_bot_stats()",
+      "file_type": "code",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L12",
+      "id": "games_bot_views_compute_bot_stats",
+      "community": 4,
+      "norm_label": "compute_bot_stats()"
+    },
+    {
+      "label": "BotStatsView",
+      "file_type": "code",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L34",
+      "id": "games_bot_views_botstatsview",
+      "community": 4,
+      "norm_label": "botstatsview"
+    },
+    {
+      "label": ".get()",
+      "file_type": "code",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L38",
+      "id": "games_bot_views_botstatsview_get",
+      "community": 4,
+      "norm_label": ".get()"
+    },
+    {
       "label": "BotGameSerializer",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L10",
+      "source_location": "L42",
       "id": "games_bot_views_botgameserializer",
       "community": 4,
       "norm_label": "botgameserializer"
@@ -619,7 +646,7 @@
       "label": "serialize()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L14",
+      "source_location": "L46",
       "id": "games_bot_views_serialize",
       "community": 4,
       "norm_label": "serialize()"
@@ -628,25 +655,25 @@
       "label": "BotGameListView",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L29",
+      "source_location": "L61",
       "id": "games_bot_views_botgamelistview",
-      "community": 4,
+      "community": 64,
       "norm_label": "botgamelistview"
     },
     {
       "label": ".list()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L33",
+      "source_location": "L65",
       "id": "games_bot_views_botgamelistview_list",
-      "community": 4,
+      "community": 64,
       "norm_label": ".list()"
     },
     {
       "label": "BotGameDetailView",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L38",
+      "source_location": "L70",
       "id": "games_bot_views_botgamedetailview",
       "community": 4,
       "norm_label": "botgamedetailview"
@@ -655,7 +682,7 @@
       "label": ".retrieve()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L42",
+      "source_location": "L74",
       "id": "games_bot_views_botgamedetailview_retrieve",
       "community": 4,
       "norm_label": ".retrieve()"
@@ -664,7 +691,7 @@
       "label": "BotGameCreateView",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L47",
+      "source_location": "L79",
       "id": "games_bot_views_botgamecreateview",
       "community": 4,
       "norm_label": "botgamecreateview"
@@ -673,7 +700,7 @@
       "label": ".create()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L51",
+      "source_location": "L83",
       "id": "games_bot_views_botgamecreateview_create",
       "community": 4,
       "norm_label": ".create()"
@@ -682,7 +709,7 @@
       "label": "BotGameUpdateView",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L60",
+      "source_location": "L92",
       "id": "games_bot_views_botgameupdateview",
       "community": 4,
       "norm_label": "botgameupdateview"
@@ -691,7 +718,7 @@
       "label": ".get_queryset()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L65",
+      "source_location": "L97",
       "id": "games_bot_views_botgameupdateview_get_queryset",
       "community": 4,
       "norm_label": ".get_queryset()"
@@ -700,26 +727,44 @@
       "label": ".partial_update()",
       "file_type": "code",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L68",
+      "source_location": "L100",
       "id": "games_bot_views_botgameupdateview_partial_update",
       "community": 4,
       "norm_label": ".partial_update()"
     },
     {
-      "label": "API \u0434\u043b\u044f \u043f\u0430\u0440\u0442\u0438\u0439 \u043f\u0440\u043e\u0442\u0438\u0432 \u0431\u043e\u0442\u0430: \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435, \u0441\u043f\u0438\u0441\u043e\u043a, \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435.",
+      "label": "API \u0434\u043b\u044f \u043f\u0430\u0440\u0442\u0438\u0439 \u043f\u0440\u043e\u0442\u0438\u0432 \u0431\u043e\u0442\u0430: \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435, \u0441\u043f\u0438\u0441\u043e\u043a, \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435, \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_views.py",
       "source_location": "L1",
       "id": "games_bot_views_rationale_1",
       "community": 4,
-      "norm_label": "api \u0434\u043b\u044f \u043f\u0430\u0440\u0442\u0438\u0438 \u043f\u0440\u043e\u0442\u0438\u0432 \u0431\u043e\u0442\u0430: \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435, \u0441\u043f\u0438\u0441\u043e\u043a, \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435."
+      "norm_label": "api \u0434\u043b\u044f \u043f\u0430\u0440\u0442\u0438\u0438 \u043f\u0440\u043e\u0442\u0438\u0432 \u0431\u043e\u0442\u0430: \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435, \u0441\u043f\u0438\u0441\u043e\u043a, \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435, \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430."
+    },
+    {
+      "label": "\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 vs \u0431\u043e\u0442 \u2014 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u043e\u0442 Glicko-2 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\u0430.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L13",
+      "id": "games_bot_views_rationale_13",
+      "community": 4,
+      "norm_label": "\u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 vs \u0431\u043e\u0442 \u2014 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u043e\u0442 glicko-2 \u0440\u0435\u0438\u0442\u0438\u043d\u0433\u0430."
+    },
+    {
+      "label": "GET /api/games/bot/stats/ \u2014 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u043f\u0430\u0440\u0442\u0438\u0439 vs \u0431\u043e\u0442 (\u043d\u0435 \u0432\u043b\u0438\u044f\u0435\u0442 \u043d\u0430 \u0440\u0435\u0439\u0442\u0438\u043d\u0433).",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L35",
+      "id": "games_bot_views_rationale_35",
+      "community": 4,
+      "norm_label": "get /api/games/bot/stats/ \u2014 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430 \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442 (\u043d\u0435 \u0432\u043b\u0438\u044f\u0435\u0442 \u043d\u0430 \u0440\u0435\u0438\u0442\u0438\u043d\u0433)."
     },
     {
       "label": "Inline serializer to avoid circular imports.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L11",
-      "id": "games_bot_views_rationale_11",
+      "source_location": "L43",
+      "id": "games_bot_views_rationale_43",
       "community": 4,
       "norm_label": "inline serializer to avoid circular imports."
     },
@@ -727,17 +772,17 @@
       "label": "GET /api/games/bot/ \u2014 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u0430\u0440\u0442\u0438\u0439 vs \u0431\u043e\u0442.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L30",
-      "id": "games_bot_views_rationale_30",
-      "community": 4,
+      "source_location": "L62",
+      "id": "games_bot_views_rationale_62",
+      "community": 64,
       "norm_label": "get /api/games/bot/ \u2014 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442."
     },
     {
       "label": "GET /api/games/bot/<id>/ \u2014 \u0434\u0435\u0442\u0430\u043b\u0438 \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L39",
-      "id": "games_bot_views_rationale_39",
+      "source_location": "L71",
+      "id": "games_bot_views_rationale_71",
       "community": 4,
       "norm_label": "get /api/games/bot/<id>/ \u2014 \u0434\u0435\u0442\u0430\u043b\u0438 \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442."
     },
@@ -745,8 +790,8 @@
       "label": "POST /api/games/bot/create/ \u2014 \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L48",
-      "id": "games_bot_views_rationale_48",
+      "source_location": "L80",
+      "id": "games_bot_views_rationale_80",
       "community": 4,
       "norm_label": "post /api/games/bot/create/ \u2014 \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442."
     },
@@ -754,8 +799,8 @@
       "label": "PATCH /api/games/bot/<id>/ \u2014 \u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c PGN \u0438 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/bot_views.py",
-      "source_location": "L61",
-      "id": "games_bot_views_rationale_61",
+      "source_location": "L93",
+      "id": "games_bot_views_rationale_93",
       "community": 4,
       "norm_label": "patch /api/games/bot/<id>/ \u2014 \u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c pgn \u0438 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442."
     },
@@ -765,7 +810,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L1",
       "id": "backend_apps_games_consumers_py",
-      "community": 1,
+      "community": 63,
       "norm_label": "consumers.py"
     },
     {
@@ -792,7 +837,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L25",
       "id": "games_consumers_gameconsumer_connect",
-      "community": 1,
+      "community": 66,
       "norm_label": ".connect()"
     },
     {
@@ -801,7 +846,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L71",
       "id": "games_consumers_gameconsumer_disconnect",
-      "community": 4,
+      "community": 64,
       "norm_label": ".disconnect()"
     },
     {
@@ -819,7 +864,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L105",
       "id": "games_consumers_gameconsumer_handle_move",
-      "community": 1,
+      "community": 63,
       "norm_label": ".handle_move()"
     },
     {
@@ -864,7 +909,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L209",
       "id": "games_consumers_gameconsumer_move_made",
-      "community": 1,
+      "community": 75,
       "norm_label": ".move_made()"
     },
     {
@@ -873,7 +918,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L216",
       "id": "games_consumers_gameconsumer_game_ended",
-      "community": 1,
+      "community": 74,
       "norm_label": ".game_ended()"
     },
     {
@@ -882,7 +927,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L224",
       "id": "games_consumers_gameconsumer_player_connected",
-      "community": 1,
+      "community": 76,
       "norm_label": ".player_connected()"
     },
     {
@@ -891,7 +936,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L231",
       "id": "games_consumers_gameconsumer_draw_offered",
-      "community": 1,
+      "community": 73,
       "norm_label": ".draw_offered()"
     },
     {
@@ -927,7 +972,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L253",
       "id": "games_consumers_get_game",
-      "community": 1,
+      "community": 66,
       "norm_label": "get_game()"
     },
     {
@@ -936,7 +981,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L264",
       "id": "games_consumers_is_player",
-      "community": 1,
+      "community": 66,
       "norm_label": "is_player()"
     },
     {
@@ -945,7 +990,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L271",
       "id": "games_consumers_is_my_turn",
-      "community": 1,
+      "community": 63,
       "norm_label": "is_my_turn()"
     },
     {
@@ -954,7 +999,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L278",
       "id": "games_consumers_is_white_player",
-      "community": 1,
+      "community": 63,
       "norm_label": "is_white_player()"
     },
     {
@@ -963,7 +1008,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L282",
       "id": "games_consumers_save_move_and_update_clock",
-      "community": 1,
+      "community": 63,
       "norm_label": "save_move_and_update_clock()"
     },
     {
@@ -972,7 +1017,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L350",
       "id": "games_consumers_check_game_over",
-      "community": 1,
+      "community": 65,
       "norm_label": "check_game_over()"
     },
     {
@@ -981,7 +1026,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L389",
       "id": "games_consumers_gameconsumer_finish_game_sync",
-      "community": 1,
+      "community": 65,
       "norm_label": "._finish_game_sync()"
     },
     {
@@ -999,7 +1044,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L407",
       "id": "games_consumers_register_connection",
-      "community": 4,
+      "community": 64,
       "norm_label": "register_connection()"
     },
     {
@@ -1008,7 +1053,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L435",
       "id": "games_consumers_unregister_connection",
-      "community": 4,
+      "community": 64,
       "norm_label": "unregister_connection()"
     },
     {
@@ -1017,7 +1062,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L443",
       "id": "games_consumers_flag_cheating",
-      "community": 1,
+      "community": 63,
       "norm_label": "flag_cheating()"
     },
     {
@@ -1026,7 +1071,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L1",
       "id": "games_consumers_rationale_1",
-      "community": 1,
+      "community": 63,
       "norm_label": "gameconsumer \u2014 websocket \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a \u0438\u0433\u0440\u044b.  \u043f\u043e\u0442\u043e\u043a:   1. \u043a\u043b\u0438\u0435\u043d\u0442 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u0442\u0441\u044f: ws:/"
     },
     {
@@ -1035,7 +1080,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L26",
       "id": "games_consumers_rationale_26",
-      "community": 1,
+      "community": 66,
       "norm_label": "\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a websocket."
     },
     {
@@ -1044,7 +1089,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L72",
       "id": "games_consumers_rationale_72",
-      "community": 4,
+      "community": 64,
       "norm_label": "\u043e\u0442\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043e\u0442 websocket."
     },
     {
@@ -1062,7 +1107,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L106",
       "id": "games_consumers_rationale_106",
-      "community": 1,
+      "community": 63,
       "norm_label": "\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0430 \u0445\u043e\u0434\u0430. \u0432\u0441\u044f \u0432\u0430\u043b\u0438\u0434\u0430\u0446\u0438\u044f \u043d\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435 \u0447\u0435\u0440\u0435\u0437 python-chess."
     },
     {
@@ -1080,7 +1125,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L210",
       "id": "games_consumers_rationale_210",
-      "community": 1,
+      "community": 75,
       "norm_label": "\u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0430 \u0445\u043e\u0434\u0430 \u0432\u0441\u0435\u043c \u0432 \u0433\u0440\u0443\u043f\u043f\u0435."
     },
     {
@@ -1089,7 +1134,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L217",
       "id": "games_consumers_rationale_217",
-      "community": 1,
+      "community": 74,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e\u0431 \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u0438 \u043f\u0430\u0440\u0442\u0438\u0438."
     },
     {
@@ -1098,7 +1143,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L225",
       "id": "games_consumers_rationale_225",
-      "community": 1,
+      "community": 76,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438 \u0438\u0433\u0440\u043e\u043a\u0430."
     },
     {
@@ -1107,7 +1152,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L232",
       "id": "games_consumers_rationale_232",
-      "community": 1,
+      "community": 73,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0438 \u043d\u0438\u0447\u044c\u0435\u0438."
     },
     {
@@ -1152,7 +1197,7 @@
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L390",
       "id": "games_consumers_rationale_390",
-      "community": 1,
+      "community": 65,
       "norm_label": "\u0441\u0438\u043d\u0445\u0440\u043e\u043d\u043d\u043e\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043f\u0430\u0440\u0442\u0438\u0438 (\u0432\u044b\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u0432\u043d\u0443\u0442\u0440\u0438 database_sync_to_async)."
     },
     {
@@ -3166,7 +3211,7 @@
       "label": "i18n",
       "file_type": "code",
       "source_file": "frontend/src/plugins/i18n.js",
-      "source_location": "L272",
+      "source_location": "L290",
       "id": "plugins_i18n_i18n",
       "community": 8,
       "norm_label": "i18n"
@@ -3175,7 +3220,7 @@
       "label": "setLanguage()",
       "file_type": "code",
       "source_file": "frontend/src/plugins/i18n.js",
-      "source_location": "L279",
+      "source_location": "L297",
       "id": "plugins_i18n_setlanguage",
       "community": 8,
       "norm_label": "setlanguage()"
@@ -3562,7 +3607,7 @@
       "label": "if()",
       "file_type": "code",
       "source_file": "frontend/src/views/ProfileView.vue",
-      "source_location": "L101",
+      "source_location": "L146",
       "id": "views_profileview_if",
       "community": 30,
       "norm_label": "if()"
@@ -3892,6 +3937,60 @@
       "norm_label": "workflow: graphify"
     },
     {
+      "label": "GET /api/users/online-count/ \u2014 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043e\u043d\u043b\u0430\u0439\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_urls.py",
+      "source_location": "L17",
+      "community": 4,
+      "norm_label": "get /api/users/online-count/ \u2014 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043e\u043d\u043b\u0430\u0438\u043d \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0438.",
+      "id": "games_bot_urls_rationale_17"
+    },
+    {
+      "label": "Inline serializer to avoid circular imports.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L11",
+      "community": 4,
+      "norm_label": "inline serializer to avoid circular imports.",
+      "id": "games_bot_views_rationale_11"
+    },
+    {
+      "label": "GET /api/games/bot/ \u2014 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u0430\u0440\u0442\u0438\u0439 vs \u0431\u043e\u0442.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L30",
+      "community": 64,
+      "norm_label": "get /api/games/bot/ \u2014 \u0438\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
+      "id": "games_bot_views_rationale_30"
+    },
+    {
+      "label": "GET /api/games/bot/<id>/ \u2014 \u0434\u0435\u0442\u0430\u043b\u0438 \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L39",
+      "community": 4,
+      "norm_label": "get /api/games/bot/<id>/ \u2014 \u0434\u0435\u0442\u0430\u043b\u0438 \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
+      "id": "games_bot_views_rationale_39"
+    },
+    {
+      "label": "POST /api/games/bot/create/ \u2014 \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L48",
+      "community": 4,
+      "norm_label": "post /api/games/bot/create/ \u2014 \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c \u043f\u0430\u0440\u0442\u0438\u0438 vs \u0431\u043e\u0442.",
+      "id": "games_bot_views_rationale_48"
+    },
+    {
+      "label": "PATCH /api/games/bot/<id>/ \u2014 \u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c PGN \u0438 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.",
+      "file_type": "rationale",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L61",
+      "community": 4,
+      "norm_label": "patch /api/games/bot/<id>/ \u2014 \u043e\u0431\u043d\u043e\u0432\u0438\u0442\u044c pgn \u0438 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.",
+      "id": "games_bot_views_rationale_61"
+    },
+    {
       "label": "\u041f\u043e\u043c\u0435\u0447\u0430\u0435\u0442 \u043f\u0430\u0440\u0442\u0438\u044e \u043a\u0430\u043a \u0447\u0438\u0442\u0435\u0440\u0441\u043a\u0443\u044e.",
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
@@ -3950,7 +4049,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L63",
-      "community": 4,
+      "community": 64,
       "norm_label": "\u043e\u0442\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043e\u0442 websocket.",
       "id": "games_consumers_rationale_63"
     },
@@ -3968,7 +4067,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L96",
-      "community": 1,
+      "community": 63,
       "norm_label": "\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0430 \u0445\u043e\u0434\u0430. \u0432\u0441\u044f \u0432\u0430\u043b\u0438\u0434\u0430\u0446\u0438\u044f \u043d\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435 \u0447\u0435\u0440\u0435\u0437 python-chess.",
       "id": "games_consumers_rationale_96"
     },
@@ -3977,7 +4076,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L193",
-      "community": 1,
+      "community": 75,
       "norm_label": "\u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0430 \u0445\u043e\u0434\u0430 \u0432\u0441\u0435\u043c \u0432 \u0433\u0440\u0443\u043f\u043f\u0435.",
       "id": "games_consumers_rationale_193"
     },
@@ -3986,7 +4085,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L200",
-      "community": 1,
+      "community": 74,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e\u0431 \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u0438 \u043f\u0430\u0440\u0442\u0438\u0438.",
       "id": "games_consumers_rationale_200"
     },
@@ -3995,7 +4094,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L208",
-      "community": 1,
+      "community": 76,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438 \u0438\u0433\u0440\u043e\u043a\u0430.",
       "id": "games_consumers_rationale_208"
     },
@@ -4004,7 +4103,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L215",
-      "community": 1,
+      "community": 73,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0438 \u043d\u0438\u0447\u044c\u0435\u0438.",
       "id": "games_consumers_rationale_215"
     },
@@ -4040,7 +4139,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L350",
-      "community": 1,
+      "community": 65,
       "norm_label": "\u0441\u0438\u043d\u0445\u0440\u043e\u043d\u043d\u043e\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043f\u0430\u0440\u0442\u0438\u0438 (\u0432\u044b\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u0432\u043d\u0443\u0442\u0440\u0438 database_sync_to_async).",
       "id": "games_consumers_rationale_350"
     },
@@ -4067,7 +4166,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L94",
-      "community": 1,
+      "community": 63,
       "norm_label": "\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0430 \u0445\u043e\u0434\u0430. \u0432\u0441\u044f \u0432\u0430\u043b\u0438\u0434\u0430\u0446\u0438\u044f \u043d\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435 \u0447\u0435\u0440\u0435\u0437 python-chess.",
       "id": "games_consumers_rationale_94"
     },
@@ -4076,7 +4175,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L191",
-      "community": 1,
+      "community": 75,
       "norm_label": "\u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0430 \u0445\u043e\u0434\u0430 \u0432\u0441\u0435\u043c \u0432 \u0433\u0440\u0443\u043f\u043f\u0435.",
       "id": "games_consumers_rationale_191"
     },
@@ -4085,7 +4184,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L198",
-      "community": 1,
+      "community": 74,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e\u0431 \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u0438 \u043f\u0430\u0440\u0442\u0438\u0438.",
       "id": "games_consumers_rationale_198"
     },
@@ -4094,7 +4193,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L206",
-      "community": 1,
+      "community": 76,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438 \u0438\u0433\u0440\u043e\u043a\u0430.",
       "id": "games_consumers_rationale_206"
     },
@@ -4103,7 +4202,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L213",
-      "community": 1,
+      "community": 73,
       "norm_label": "\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u043e \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0438 \u043d\u0438\u0447\u044c\u0435\u0438.",
       "id": "games_consumers_rationale_213"
     },
@@ -4139,7 +4238,7 @@
       "file_type": "rationale",
       "source_file": "backend/apps/games/consumers.py",
       "source_location": "L348",
-      "community": 1,
+      "community": 65,
       "norm_label": "\u0441\u0438\u043d\u0445\u0440\u043e\u043d\u043d\u043e\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043f\u0430\u0440\u0442\u0438\u0438 (\u0432\u044b\u0437\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u0432\u043d\u0443\u0442\u0440\u0438 database_sync_to_async).",
       "id": "games_consumers_rationale_348"
     },
@@ -5240,6 +5339,16 @@
       "relation": "uses",
       "confidence": "INFERRED",
       "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L9",
+      "weight": 0.8,
+      "confidence_score": 0.5,
+      "source": "games_bot_views_botstatsview",
+      "target": "games_bot_models_botgame"
+    },
+    {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "backend/apps/games/bot_views.py",
       "source_location": "L7",
       "weight": 0.8,
       "confidence_score": 0.5,
@@ -5330,10 +5439,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/apps/games/bot_urls.py",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "games_bot_urls_rationale_17",
+      "source": "games_bot_urls_rationale_18",
       "target": "games_bot_urls_onlinecountview"
     },
     {
@@ -5377,6 +5486,26 @@
       "target": "games_bot_views_botgameupdateview"
     },
     {
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "backend/apps/games/bot_urls.py",
+      "source_location": "L7",
+      "weight": 0.8,
+      "confidence_score": 0.5,
+      "source": "games_bot_urls_onlinecountview",
+      "target": "games_bot_views_botstatsview"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_urls.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_urls_rationale_17",
+      "target": "games_bot_urls_onlinecountview"
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/apps/games/bot_urls.py",
@@ -5385,6 +5514,16 @@
       "confidence_score": 1.0,
       "source": "games_bot_urls_rationale_24",
       "target": "games_bot_urls_onlinecountview"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_botstatsview",
+      "target": "apiview"
     },
     {
       "relation": "calls",
@@ -5396,6 +5535,26 @@
       "weight": 1.0,
       "source": "games_bot_urls_onlinecountview_get",
       "target": "games_presence_get_online_count"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "backend_apps_games_bot_views_py",
+      "target": "games_bot_views_compute_bot_stats"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "backend_apps_games_bot_views_py",
+      "target": "games_bot_views_botstatsview"
     },
     {
       "relation": "contains",
@@ -5468,6 +5627,90 @@
       "target": "backend_apps_games_bot_views_py"
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_botstatsview_get",
+      "target": "games_bot_views_compute_bot_stats"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_13",
+      "target": "games_bot_views_compute_bot_stats"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_botstatsview",
+      "target": "games_bot_views_botstatsview_get"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_35",
+      "target": "games_bot_views_botstatsview"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_botgamedetailview_retrieve",
+      "target": "games_bot_views_botstatsview_get"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_botgamecreateview_create",
+      "target": "games_bot_views_botstatsview_get"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L114",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_botgameupdateview_partial_update",
+      "target": "games_bot_views_botstatsview_get"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_43",
+      "target": "games_bot_views_botgameserializer"
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/apps/games/bot_views.py",
@@ -5508,6 +5751,16 @@
       "confidence_score": 1.0,
       "source": "games_bot_views_botgamelistview",
       "target": "games_bot_views_botgamelistview_list"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_62",
+      "target": "games_bot_views_botgamelistview"
     },
     {
       "relation": "rationale_for",
@@ -5555,6 +5808,16 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L71",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_71",
+      "target": "games_bot_views_botgamedetailview"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
       "source_location": "L39",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -5570,6 +5833,16 @@
       "confidence_score": 1.0,
       "source": "games_bot_views_botgamecreateview",
       "target": "games_bot_views_botgamecreateview_create"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_80",
+      "target": "games_bot_views_botgamecreateview"
     },
     {
       "relation": "rationale_for",
@@ -5610,6 +5883,16 @@
       "confidence_score": 1.0,
       "source": "games_bot_views_botgameupdateview",
       "target": "games_bot_views_botgameupdateview_partial_update"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/apps/games/bot_views.py",
+      "source_location": "L93",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "games_bot_views_rationale_93",
+      "target": "games_bot_views_botgameupdateview"
     },
     {
       "relation": "rationale_for",
@@ -9435,5 +9718,6 @@
       "target": "workflows_graphify_workflow_graphify"
     }
   ],
-  "hyperedges": []
+  "hyperedges": [],
+  "built_at_commit": "eec4bd6b0254886cd55c70938a40cf55a8638539"
 }

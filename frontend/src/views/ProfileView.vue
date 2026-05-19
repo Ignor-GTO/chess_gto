@@ -18,14 +18,15 @@
         </div>
       </div>
 
-      <!-- Рейтинг -->
+      <!-- Онлайн рейтинг (Glicko-2) -->
       <div class="rating-card">
         <div class="rating-value">{{ Math.round(user.rating) }}</div>
-        <div class="rating-label">{{ $t('profile.rating') }}</div>
+        <div class="rating-label">{{ $t('profile.onlineRating') }}</div>
         <div class="rating-rd">± {{ Math.round(user.rating_deviation) }}</div>
       </div>
 
-      <!-- Статистика -->
+      <!-- Онлайн статистика -->
+      <h3 class="section-title">{{ $t('profile.onlineStats') }}</h3>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">{{ user.games_played }}</div>
@@ -45,7 +46,6 @@
         </div>
       </div>
 
-      <!-- Процент побед -->
       <div class="win-rate-bar" v-if="user.games_played > 0">
         <div class="wr-label">{{ $t('profile.winRate') }}: {{ user.win_rate }}%</div>
         <div class="wr-track">
@@ -53,29 +53,69 @@
           <div class="wr-fill draws" :style="{ width: drawPercent + '%' }"></div>
           <div class="wr-fill losses" :style="{ width: lossPercent + '%' }"></div>
         </div>
-        <div class="wr-legend">
-          <span class="wins">■ {{ $t('profile.wins') }}</span>
-          <span class="draws">■ {{ $t('profile.draws') }}</span>
-          <span class="losses">■ {{ $t('profile.losses') }}</span>
-        </div>
       </div>
 
-      <!-- История последних партий -->
+      <!-- Статистика vs бот (отдельно) -->
+      <template v-if="isOwnProfile && botStats">
+        <h3 class="section-title">
+          🤖 {{ $t('profile.botStats') }}
+          <span class="section-note">{{ $t('profile.botNote') }}</span>
+        </h3>
+        <div class="stats-grid bot-stats">
+          <div class="stat-card">
+            <div class="stat-value">{{ botStats.games_played }}</div>
+            <div class="stat-label">{{ $t('profile.games') }}</div>
+          </div>
+          <div class="stat-card wins">
+            <div class="stat-value">{{ botStats.games_won }}</div>
+            <div class="stat-label">{{ $t('profile.wins') }}</div>
+          </div>
+          <div class="stat-card losses">
+            <div class="stat-value">{{ botStats.games_lost }}</div>
+            <div class="stat-label">{{ $t('profile.losses') }}</div>
+          </div>
+          <div class="stat-card draws">
+            <div class="stat-value">{{ botStats.games_drawn }}</div>
+            <div class="stat-label">{{ $t('profile.draws') }}</div>
+          </div>
+        </div>
+        <div class="win-rate-bar" v-if="botStats.games_played > 0">
+          <div class="wr-label">{{ $t('profile.winRate') }}: {{ botStats.win_rate }}%</div>
+        </div>
+      </template>
+
+      <!-- История онлайн -->
       <div class="games-history">
-        <h2>{{ $t('profile.history') }}</h2>
-        <div v-for="game in recentGames" :key="game.id" class="game-item" @click="goToAnalysis(game)">
+        <h2>{{ $t('profile.historyOnline') }}</h2>
+        <div v-for="game in onlineGames" :key="game.id" class="game-item" @click="goToAnalysis(game)">
           <div class="game-result-dot" :class="getResultClass(game)"></div>
           <div class="game-players">
             <span>{{ game.white_player?.username }}</span>
             <span class="vs">vs</span>
             <span>{{ game.black_player?.username }}</span>
           </div>
-          <div class="game-tc">{{ game.time_control?.replace('_', '+') }}</div>
+          <div class="game-tc">{{ formatTimeControl(game.time_control) }}</div>
           <div class="game-rating-change" :class="getRatingChangeClass(game)">
             {{ getRatingChangeText(game) }}
           </div>
         </div>
-        <div v-if="!recentGames.length" class="no-games">Партий пока нет</div>
+        <div v-if="!onlineGames.length" class="no-games">Партий пока нет</div>
+      </div>
+
+      <!-- История vs бот -->
+      <div v-if="isOwnProfile" class="games-history">
+        <h2>🤖 {{ $t('profile.historyBot') }}</h2>
+        <div v-for="game in botGames" :key="game.id" class="game-item" @click="goToAnalysis(game)">
+          <div class="game-result-dot" :class="getResultClass(game)"></div>
+          <div class="game-players">
+            <span>{{ getBotWhiteName(game) }}</span>
+            <span class="vs">vs</span>
+            <span>{{ getBotBlackName(game) }}</span>
+          </div>
+          <div class="game-tc">skill {{ game.skill_level }}</div>
+          <div class="game-rating-change bot-badge">🤖</div>
+        </div>
+        <div v-if="!botGames.length" class="no-games">Партий vs бот пока нет</div>
       </div>
     </div>
   </div>
@@ -91,9 +131,14 @@ const route     = useRoute();
 const router    = useRouter();
 const authStore = useAuthStore();
 
-const user       = ref(null);
-const recentGames = ref([]);
-const loading    = ref(true);
+const user        = ref(null);
+const onlineGames = ref([]);
+const botGames    = ref([]);
+const botStats    = ref(null);
+const loading     = ref(true);
+
+const isOwnProfile = computed(() => !route.params.username);
+const profileUserId = computed(() => user.value?.id);
 
 onMounted(async () => {
   const username = route.params.username;
@@ -102,22 +147,26 @@ onMounted(async () => {
       const { data } = await axios.get(`/api/users/${username}/`);
       user.value = data;
     } else {
+      await authStore.fetchUser();
       user.value = authStore.user;
     }
-    // Загружаем историю игр
     const { data } = await axios.get('/api/games/');
-    recentGames.value = data.results || data;
-    // Bot games (отдельная статистика)
-    try {
-      const { data: botData } = await axios.get('/api/games/bot/');
-      const botItems = (botData || []).slice(0, 5).map(g => ({
-        ...g,
-        isBot: true,
-        white_player: { username: authStore.user?.username },
-        black_player: { username: `🤖 Stockfish ${g.skill_level}` },
-      }));
-      recentGames.value = [...recentGames.value, ...botItems].slice(0, 15);
-    } catch {}
+    let games = data.results || data;
+    if (username) {
+      games = games.filter(g =>
+        g.white_player?.username === username || g.black_player?.username === username
+      );
+    }
+    onlineGames.value = games.slice(0, 10);
+
+    if (isOwnProfile.value) {
+      const [{ data: botData }, { data: stats }] = await Promise.all([
+        axios.get('/api/games/bot/'),
+        axios.get('/api/games/bot/stats/'),
+      ]);
+      botGames.value = (botData || []).slice(0, 10).map(g => ({ ...g, isBot: true }));
+      botStats.value = stats;
+    }
   } finally {
     loading.value = false;
   }
@@ -128,6 +177,20 @@ const winPercent  = computed(() => user.value ? (user.value.games_won   / user.v
 const drawPercent = computed(() => user.value ? (user.value.games_drawn / user.value.games_played * 100) : 0);
 const lossPercent = computed(() => user.value ? (user.value.games_lost  / user.value.games_played * 100) : 0);
 
+function formatTimeControl(tc) {
+  return tc ? tc.replace(/_/g, '+') : '';
+}
+
+function getBotWhiteName(game) {
+  const bot = `🤖 Stockfish ${game.skill_level}`;
+  return game.player_color === 'white' ? user.value?.username : bot;
+}
+
+function getBotBlackName(game) {
+  const bot = `🤖 Stockfish ${game.skill_level}`;
+  return game.player_color === 'black' ? user.value?.username : bot;
+}
+
 function getResultClass(game) {
   if (game.isBot) {
     if (game.result === 'draw') return 'draw';
@@ -135,24 +198,25 @@ function getResultClass(game) {
       || (game.result === 'black_win' && game.player_color === 'black');
     return won ? 'win' : 'loss';
   }
-  const me = authStore.user?.id;
-  const isWhite = game.white_player?.id === me;
+  const uid = profileUserId.value;
+  const isWhite = game.white_player?.id === uid;
   if (game.result === 'draw') return 'draw';
   const win = (game.result === 'white_win' && isWhite) || (game.result === 'black_win' && !isWhite);
   return win ? 'win' : 'loss';
 }
 
 function getRatingChangeClass(game) {
-  const me = authStore.user?.id;
-  const isWhite = game.white_player?.id === me;
+  if (game.isBot) return '';
+  const uid = profileUserId.value;
+  const isWhite = game.white_player?.id === uid;
   const change = isWhite ? game.white_rating_change : game.black_rating_change;
   if (!change) return '';
   return change > 0 ? 'positive' : change < 0 ? 'negative' : '';
 }
 
 function getRatingChangeText(game) {
-  const me = authStore.user?.id;
-  const isWhite = game.white_player?.id === me;
+  const uid = profileUserId.value;
+  const isWhite = game.white_player?.id === uid;
   const change = isWhite ? game.white_rating_change : game.black_rating_change;
   if (change === null) return '';
   return change > 0 ? `+${Math.round(change)}` : Math.round(change);
@@ -201,6 +265,22 @@ function goToAnalysis(game) {
   color: var(--color-text-muted);
 }
 .badge.online { color: #10b981; }
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.section-note {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.bot-stats { opacity: 0.95; }
+.bot-badge { font-size: 0.85rem; opacity: 0.7; }
 
 /* Рейтинг */
 .rating-card {
