@@ -8,7 +8,7 @@
       :is-bot="true"
     />
 
-    <div v-if="!isGameOver" class="turn-indicator" :class="{ 'my-turn': isMyTurn && !isEngineLoading }">
+    <div v-if="!isGameOver" class="turn-indicator" :class="{ 'my-turn': isMyTurn }">
       {{ turnLabel }}
     </div>
 
@@ -16,8 +16,8 @@
       :fen="fen"
       :player-color="playerColor"
       :last-move="lastMove"
-      :is-my-turn="isMyTurn && !isEngineLoading"
-      :disabled="isGameOver || isEngineLoading"
+      :is-my-turn="isMyTurn && !isBotThinking"
+      :disabled="isGameOver || isBotThinking"
       @move="onPlayerMove"
     />
 
@@ -28,10 +28,6 @@
       :is-active="isMyTurn && !isGameOver"
       :is-me="true"
     />
-
-    <div v-if="engineError" class="engine-error">
-      ⚠ {{ engineError }}
-    </div>
 
     <div class="game-controls">
       <button @click="game.resign()" :disabled="isGameOver" class="btn-danger">
@@ -77,14 +73,13 @@ const playerColor = computed(() => game.playerColor.value);
 const skillLevel = computed(() => game.skillLevel.value);
 const isMyTurn = computed(() => game.isMyTurn.value);
 const isGameOver = computed(() => game.isGameOver.value);
-const isEngineLoading = computed(() => game.isEngineLoading.value);
+const isBotThinking = computed(() => game.isBotThinking.value);
 const result = computed(() => game.result.value);
 const resultReason = computed(() => game.resultReason.value);
-const engineError = computed(() => game.engineError.value);
 const turnLabel = computed(() => game.turnLabel.value);
 const moveUcis = computed(() => game.moveUcis.value);
 
-const botName = computed(() => `🤖 Stockfish ${game.skillConfig.value.label}`);
+const botName = computed(() => `🤖 Бот ${game.skillConfig.value.label}`);
 const botRating = computed(() => {
   const ratings = { 0: 800, 5: 1200, 10: 1600, 15: 2000, 20: 2500 };
   return ratings[skillLevel.value] || 1500;
@@ -134,11 +129,6 @@ function newGame() {
 .turn-indicator.my-turn {
   color: var(--color-accent);
   border-color: var(--color-accent);
-}
-
-.engine-error {
-  font-size: 0.85rem;
-  color: var(--color-danger);
 }
 
 .game-controls {

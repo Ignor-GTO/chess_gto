@@ -234,15 +234,6 @@ function tryMove(from, to, promotion) {
     return;
   }
 
-  const moveInput = { from, to };
-  if (isPromotion) moveInput.promotion = promotion || 'q';
-
-  const applied = chess.value.move(moveInput);
-  if (!applied) {
-    selectedSquare.value = null;
-    return;
-  }
-
   emit('move', { from, to, promotion: isPromotion ? (promotion || 'q') : undefined });
   selectedSquare.value = null;
   pendingPromotion.value = null;
