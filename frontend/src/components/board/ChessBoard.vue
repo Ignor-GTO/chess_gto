@@ -29,13 +29,13 @@
         <div
           v-if="legalMoveSet.has(square.name)"
           class="legal-dot"
-          :class="{ 'legal-capture': !!getPiece(square.name) }"
+          :class="{ 'legal-capture': !!boardPieces[square.name] }"
         />
 
         <img
-          v-if="getPiece(square.name)"
-          :src="getPieceImage(getPiece(square.name))"
-          :alt="getPiece(square.name)"
+          v-if="boardPieces[square.name]"
+          :src="getPieceImage(boardPieces[square.name])"
+          :alt="boardPieces[square.name]"
           class="piece"
           draggable="false"
         />
@@ -83,6 +83,16 @@ const pendingPromotion = ref(null);
 const promotionPieces = ['q', 'r', 'b', 'n'];
 
 const chess = ref(new Chess(props.fen));
+
+const boardPieces = computed(() => {
+  const map = {};
+  for (const row of chess.value.board()) {
+    for (const cell of row) {
+      if (cell) map[cell.square] = cell.color + cell.type.toUpperCase();
+    }
+  }
+  return map;
+});
 
 watch(() => props.fen, (newFen) => {
   if (typeof newFen !== 'string' || !newFen) return;
@@ -150,12 +160,6 @@ const PIECE_IMAGES = {};
   });
 });
 
-function getPiece(squareName) {
-  const piece = chess.value.get(squareName);
-  if (!piece) return null;
-  return piece.color + piece.type.toUpperCase();
-}
-
 function getPieceImage(pieceCode) {
   return PIECE_IMAGES[pieceCode] || '';
 }
@@ -171,7 +175,7 @@ function canInteract() {
 function onSquareClick(squareName) {
   if (!canInteract()) return;
 
-  const piece = getPiece(squareName);
+  const piece = boardPieces.value[squareName];
   const turn = chess.value.turn();
   const myColor = myColorChar();
 

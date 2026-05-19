@@ -1,15 +1,14 @@
 /**
- * useBotGame.js — игра против локального бота (chess.js).
+ * useBotGame.js — игра против локального бота (Web Worker).
  */
 import { ref, computed, onUnmounted } from 'vue';
 import { Chess } from 'chess.js';
 import axios from '@/plugins/axios';
-import { pickBotMove } from '@/utils/botEngine';
 
 export const SKILL_CONFIGS = {
-  0:  { label: '🐣 Новичок',   movetime: 200,  skillLevel: 0  },
-  5:  { label: '🙂 Любитель',  movetime: 400,  skillLevel: 5  },
-  10: { label: '😐 Средний',   movetime: 600,  skillLevel: 10 },
+  0:  { label: '🐣 Новичок',   movetime: 250,  skillLevel: 0  },
+  5:  { label: '🙂 Любитель',  movetime: 450,  skillLevel: 5  },
+  10: { label: '😐 Средний',   movetime: 650,  skillLevel: 10 },
   15: { label: '😤 Сильный',   movetime: 900,  skillLevel: 15 },
   20: { label: '🤖 Эксперт',   movetime: 1200, skillLevel: 20 },
 };
@@ -28,7 +27,8 @@ export function useBotGame() {
   const isBotThinking = ref(false);
 
   let gameId = null;
-  let botTimer = null;
+  let botWorker = null;
+  let botRequestId = 0;
 
   const skillConfig = computed(() => SKILL_CONFIGS[skillLevel.value] || SKILL_CONFIGS[10]);
   const moveSans    = computed(() => moves.value.map(m => m.san));
@@ -39,15 +39,56 @@ export function useBotGame() {
     return isMyTurn.value ? 'Ваш ход' : 'Ход бота';
   });
 
-  function clearBotTimer() {
-    if (botTimer) {
-      clearTimeout(botTimer);
-      botTimer = null;
-    }
+  function ensureBotWorker() {
+    if (botWorker) return botWorker;
+
+    botWorker = new Worker(
+      new URL('@/workers/botEngine.worker.js', import.meta.url),
+      { type: 'module' },
+    );
+
+    botWorker.onmessage = (event) => {
+      const { requestId, ok, move, error } = event.data;
+      if (requestId !== botRequestId) return;
+
+      isBotThinking.value = false;
+
+      if (!ok || !move) {
+        console.warn('Bot move failed:', error);
+        isMyTurn.value = true;
+        return;
+      }
+
+      if (isGameOver.value || isMyTurn.value) return;
+
+      const moveInput = { from: move.from, to: move.to };
+      if (move.promotion) moveInput.promotion = move.promotion;
+
+      const moveObj = chess.value.move(moveInput);
+      if (!moveObj) {
+        isMyTurn.value = true;
+        return;
+      }
+
+      const uci = move.from + move.to + (moveObj.promotion || '');
+      applyMove(uci, moveObj.san);
+      isMyTurn.value = true;
+      checkGameOver();
+      saveMoves();
+    };
+
+    botWorker.onerror = (err) => {
+      console.error('Bot worker error:', err);
+      isBotThinking.value = false;
+      isMyTurn.value = true;
+    };
+
+    return botWorker;
   }
 
   function startGame(color = 'white', skill = 10) {
-    clearBotTimer();
+    botRequestId += 1;
+    isBotThinking.value = false;
 
     playerColor.value = color;
     skillLevel.value = skill;
@@ -59,7 +100,6 @@ export function useBotGame() {
     result.value = null;
     resultReason.value = null;
     isMyTurn.value = color === 'white';
-    isBotThinking.value = false;
 
     createGameRecord();
 
@@ -93,38 +133,18 @@ export function useBotGame() {
     if (isGameOver.value || isMyTurn.value) return;
 
     isBotThinking.value = true;
-    clearBotTimer();
+    const requestId = ++botRequestId;
+    const fenSnapshot = chess.value.fen();
+    const skill = skillLevel.value;
+    const delay = skillConfig.value.movetime;
 
-    botTimer = setTimeout(() => {
-      botTimer = null;
-      if (isGameOver.value || isMyTurn.value) {
+    setTimeout(() => {
+      if (requestId !== botRequestId || isGameOver.value || isMyTurn.value) {
         isBotThinking.value = false;
         return;
       }
-
-      const choice = pickBotMove(chess.value.fen(), skillLevel.value);
-      isBotThinking.value = false;
-
-      if (!choice) {
-        isMyTurn.value = true;
-        return;
-      }
-
-      const moveInput = { from: choice.from, to: choice.to };
-      if (choice.promotion) moveInput.promotion = choice.promotion;
-
-      const moveObj = chess.value.move(moveInput);
-      if (!moveObj) {
-        isMyTurn.value = true;
-        return;
-      }
-
-      const uci = choice.from + choice.to + (moveObj.promotion || '');
-      applyMove(uci, moveObj.san);
-      isMyTurn.value = true;
-      checkGameOver();
-      saveMoves();
-    }, skillConfig.value.movetime);
+      ensureBotWorker().postMessage({ requestId, fen: fenSnapshot, skillLevel: skill });
+    }, delay);
   }
 
   function applyMove(uci, san) {
@@ -145,10 +165,8 @@ export function useBotGame() {
       endDraw('stalemate');
     } else if (c.isInsufficientMaterial()) {
       endDraw('insufficient_material');
-    } else if (c.isThreefoldRepetition()) {
-      endDraw('threefold_repetition');
     } else if (c.isDraw()) {
-      endDraw('50_moves');
+      endDraw('draw');
     }
   }
 
@@ -190,7 +208,7 @@ export function useBotGame() {
   }
 
   async function finalizeGame() {
-    clearBotTimer();
+    botRequestId += 1;
     isBotThinking.value = false;
     if (!gameId) return;
     try {
@@ -204,7 +222,10 @@ export function useBotGame() {
   }
 
   function cleanup() {
-    clearBotTimer();
+    botRequestId += 1;
+    isBotThinking.value = false;
+    botWorker?.terminate();
+    botWorker = null;
   }
 
   onUnmounted(cleanup);

@@ -1,5 +1,5 @@
 /**
- * Локальный бот на chess.js — без Web Workers и Stockfish.
+ * Локальный бот — лёгкий minimax (глубина 0–1), без зависаний UI.
  */
 import { Chess } from 'chess.js';
 
@@ -17,74 +17,58 @@ function evaluateMaterial(chess) {
   return score;
 }
 
-function evaluate(chess, forWhite) {
+function evaluate(chess, maximizingWhite) {
   const material = evaluateMaterial(chess);
-  const score = forWhite ? material : -material;
-  if (chess.isCheckmate()) return forWhite ? -99999 : 99999;
+  const score = maximizingWhite ? material : -material;
+  if (chess.isCheckmate()) return maximizingWhite ? -99999 : 99999;
   if (chess.isDraw()) return 0;
   return score;
 }
 
-function searchBest(chess, depth, forWhite, skillLevel) {
-  if (depth === 0 || chess.isGameOver()) {
-    return { score: evaluate(chess, forWhite) };
-  }
-
+function pickBestMove(chess, maximizingWhite, skillLevel) {
   const moves = chess.moves({ verbose: true });
-  if (!moves.length) return { score: evaluate(chess, forWhite) };
+  if (!moves.length) return null;
 
-  let bestScore = forWhite ? -Infinity : Infinity;
-  let bestMoves = [];
+  let bestScore = maximizingWhite ? -Infinity : Infinity;
+  let best = [];
 
   for (const move of moves) {
     chess.move(move);
-    const { score } = searchBest(chess, depth - 1, forWhite, skillLevel);
+    const score = evaluate(chess, maximizingWhite);
     chess.undo();
 
-    const isBetter = forWhite ? score > bestScore : score < bestScore;
-    const isEqual = score === bestScore;
-
-    if (isBetter || isEqual) {
-      if (isBetter) {
-        bestScore = score;
-        bestMoves = [move];
-      } else {
-        bestMoves.push(move);
-      }
+    const better = maximizingWhite ? score > bestScore : score < bestScore;
+    if (better) {
+      bestScore = score;
+      best = [move];
+    } else if (score === bestScore) {
+      best.push(move);
     }
   }
 
-  const slip = skillLevel < 5 ? 0.45 : skillLevel < 10 ? 0.2 : skillLevel < 15 ? 0.08 : 0;
-  if (slip > 0 && Math.random() < slip && moves.length > 1) {
-    return { move: moves[Math.floor(Math.random() * moves.length)], score: bestScore };
+  const slip = skillLevel < 5 ? 0.5 : skillLevel < 10 ? 0.25 : skillLevel < 15 ? 0.1 : 0;
+  if (slip > 0 && Math.random() < slip) {
+    return moves[Math.floor(Math.random() * moves.length)];
   }
 
-  const pick = bestMoves[Math.floor(Math.random() * bestMoves.length)] || moves[0];
-  return { move: pick, score: bestScore };
+  return best[Math.floor(Math.random() * best.length)] || moves[0];
 }
 
-/**
- * @param {string} fen
- * @param {number} skillLevel 0–20
- */
 export function pickBotMove(fen, skillLevel = 10) {
   const chess = new Chess(fen);
   const legal = chess.moves({ verbose: true });
   if (!legal.length) return null;
 
   const botIsWhite = chess.turn() === 'w';
-  const depth = skillLevel >= 15 ? 2 : skillLevel >= 5 ? 1 : 0;
+  const useSearch = skillLevel >= 5;
 
-  if (depth === 0) {
+  if (!useSearch) {
     const m = legal[Math.floor(Math.random() * legal.length)];
     return { from: m.from, to: m.to, promotion: m.promotion };
   }
 
-  const { move } = searchBest(chess, depth, botIsWhite, skillLevel);
-  if (!move) {
-    const m = legal[0];
-    return { from: m.from, to: m.to, promotion: m.promotion };
-  }
+  const move = pickBestMove(chess, botIsWhite, skillLevel);
+  if (!move) return null;
 
   return { from: move.from, to: move.to, promotion: move.promotion };
 }
