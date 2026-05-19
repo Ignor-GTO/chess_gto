@@ -65,6 +65,15 @@ class GameConsumer(AsyncWebsocketConsumer):
                 'black_clock': int(self.game.black_time_remaining * 1000),
                 'fen': self.game.current_fen,
             })
+        elif self.game.status == 'active':
+            game = await self.refresh_game_state()
+            if game:
+                await self.send(json.dumps({
+                    'type': 'game_sync',
+                    'fen': game.current_fen,
+                    'white_clock': int(game.white_time_remaining * 1000),
+                    'black_clock': int(game.black_time_remaining * 1000),
+                }))
 
         logger.info(f'User {self.user.username} connected to game {self.game_id}')
 
@@ -106,6 +115,8 @@ class GameConsumer(AsyncWebsocketConsumer):
         """
         Обработка хода. Вся валидация на сервере через python-chess.
         """
+        await self.refresh_board_from_db()
+
         uci_move = data.get('uci', '')
         client_timestamp = data.get('timestamp', time.time() * 1000)
 
@@ -207,10 +218,12 @@ class GameConsumer(AsyncWebsocketConsumer):
     # --- Channel layer event handlers (рассылка группе) ---
 
     async def move_made(self, event):
-        """Отправка хода всем в группе."""
+        """Отправка хода всем в группе + синхронизация локальной доски."""
+        self.board = chess.Board(event['fen'])
+        payload = {k: v for k, v in event.items() if k != 'type'}
         await self.send(json.dumps({
             'type': 'move',
-            **event,
+            **payload,
         }))
 
     async def game_ended(self, event):
@@ -248,6 +261,21 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     async def send_error(self, code: str):
         await self.send(json.dumps({'type': 'error', 'code': code}))
+
+    @database_sync_to_async
+    def refresh_board_from_db(self):
+        """Актуальная позиция из БД перед обработкой хода."""
+        from apps.games.models import Game
+        self.game = Game.objects.get(id=self.game_id)
+        self.board = chess.Board(self.game.current_fen)
+
+    @database_sync_to_async
+    def refresh_game_state(self):
+        from apps.games.models import Game
+        try:
+            return Game.objects.get(id=self.game_id, status='active')
+        except Game.DoesNotExist:
+            return None
 
     @database_sync_to_async
     def get_game(self):
@@ -429,7 +457,8 @@ class GameConsumer(AsyncWebsocketConsumer):
             game.save(update_fields=['status', 'started_at', 'last_move_at'])
             self.game = game
             return True
-        return game.status == 'active'
+
+        return False
 
     @database_sync_to_async
     def unregister_connection(self):

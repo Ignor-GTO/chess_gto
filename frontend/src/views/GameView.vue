@@ -48,6 +48,7 @@
       v-if="gameStore.isGameOver"
       :result="gameStore.result"
       :reason="gameStore.resultReason"
+      :player-color="gameStore.playerColor"
       :rating-change="myRatingChange"
       @analyze="goToAnalysis"
       @new-game="startNewGame"

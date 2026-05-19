@@ -3,6 +3,8 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { Chess } from 'chess.js';
+import axios from '@/plugins/axios';
 import { useAuthStore } from './useAuthStore';
 import { playMoveSound } from '@/composables/useChessSounds';
 
@@ -35,6 +37,7 @@ export const useGameStore = defineStore('game', () => {
   const isConnected  = ref(false);
 
   let ws = null;
+  let pendingMove = false;
 
   const myColor = computed(() => playerColor.value);
   const isGameOver = computed(() => status.value === 'finished');
@@ -120,15 +123,81 @@ export const useGameStore = defineStore('game', () => {
     stopClock();
   }
 
+  async function resyncFromServer() {
+    if (!gameId.value) return;
+    try {
+      const { data } = await axios.get(`/api/games/${gameId.value}/`);
+      hydrateFromApi(data, playerColor.value);
+    } catch (err) {
+      console.error('[Game] resync failed:', err);
+    }
+  }
+
+  function syncClocksAndTurn(data) {
+    if (data.white_clock != null) whiteClock.value = data.white_clock;
+    if (data.black_clock != null) blackClock.value = data.black_clock;
+
+    const turn = (data.fen || fen.value).split(' ')[1];
+    isMyTurn.value = (
+      (turn === 'w' && playerColor.value === 'white') ||
+      (turn === 'b' && playerColor.value === 'black')
+    );
+
+    if (status.value === 'active' && !isGameOver.value) {
+      startClock(turn);
+    }
+  }
+
   function sendMove(from, to, promotion) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    if (!isMyTurn.value) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    if (!isMyTurn.value || pendingMove) return false;
+
+    const uci = from + to + (promotion || '');
+
+    try {
+      const chess = new Chess(fen.value);
+      const moveObj = chess.move({ from, to, promotion });
+      if (!moveObj) return false;
+
+      fen.value = chess.fen();
+      lastMove.value = { from, to };
+      isMyTurn.value = false;
+      pendingMove = true;
+    } catch {
+      return false;
+    }
 
     ws.send(JSON.stringify({
       type: 'move',
-      uci: from + to + (promotion || ''),
+      uci,
       timestamp: Date.now(),
     }));
+    return true;
+  }
+
+  function applyMovePayload(data) {
+    pendingMove = false;
+    if (status.value !== 'finished') status.value = 'active';
+
+    fen.value = data.fen;
+    lastMove.value = { from: data.uci.slice(0, 2), to: data.uci.slice(2, 4) };
+
+    const lastUci = moves.value[moves.value.length - 1]?.uci;
+    if (lastUci !== data.uci) {
+      moves.value.push({ uci: data.uci, san: data.san, fen: data.fen });
+    }
+
+    playMoveSound({
+      capture: data.san?.includes('x'),
+      check: data.san?.includes('+') || data.san?.includes('#'),
+      castle: data.san === 'O-O' || data.san === 'O-O-O',
+    });
+
+    syncClocksAndTurn(data);
+
+    if (data.game_over) {
+      handleGameOver(data.game_over);
+    }
   }
 
   function resign() {
@@ -152,30 +221,8 @@ export const useGameStore = defineStore('game', () => {
     switch (data.type) {
 
       case 'move':
-        fen.value = data.fen;
-        lastMove.value = { from: data.uci.slice(0, 2), to: data.uci.slice(2, 4) };
-        moves.value.push({ uci: data.uci, san: data.san, fen: data.fen });
-        playMoveSound({
-          capture: data.san?.includes('x'),
-          check: data.san?.includes('+') || data.san?.includes('#'),
-          castle: data.san === 'O-O' || data.san === 'O-O-O',
-        });
-        whiteClock.value = data.white_clock;
-        blackClock.value = data.black_clock;
-
-        const currentTurn = data.fen.split(' ')[1];
-        isMyTurn.value = (
-          (currentTurn === 'w' && playerColor.value === 'white') ||
-          (currentTurn === 'b' && playerColor.value === 'black')
-        );
-
-        if (status.value === 'active') {
-          startClock(currentTurn);
-        }
-
-        if (data.game_over) {
-          handleGameOver(data.game_over);
-        }
+      case 'move_made':
+        applyMovePayload(data);
         break;
 
       case 'game_over':
@@ -183,12 +230,10 @@ export const useGameStore = defineStore('game', () => {
         break;
 
       case 'game_started':
+      case 'game_sync':
         status.value = 'active';
-        whiteClock.value = data.white_clock;
-        blackClock.value = data.black_clock;
         if (data.fen) fen.value = data.fen;
-        isMyTurn.value = playerColor.value === 'white';
-        startClock(fen.value.split(' ')[1]);
+        syncClocksAndTurn(data);
         break;
 
       case 'player_connected':
@@ -207,6 +252,10 @@ export const useGameStore = defineStore('game', () => {
 
       case 'error':
         console.error('[Game] Ошибка сервера:', data.code);
+        pendingMove = false;
+        if (data.code === 'not_your_turn' || data.code === 'invalid_move_format') {
+          resyncFromServer();
+        }
         break;
     }
   }

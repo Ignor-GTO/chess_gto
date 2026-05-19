@@ -42,6 +42,7 @@
           :current-move-idx="currentMoveIdx"
           @jump="jumpTo"
           @results="onAnalysisResults"
+          @review-mode="onReviewMode"
         />
 
         <MoveList
@@ -139,6 +140,10 @@ const canStepAfterOpponent = computed(() => {
 
 function onAnalysisResults(results) {
   classifications.value = results.map(r => r.classification);
+}
+
+function onReviewMode(active) {
+  if (active) jumpTo(0);
 }
 
 onMounted(async () => {

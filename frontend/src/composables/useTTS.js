@@ -89,20 +89,35 @@ function speakWeb(text, { lang, rate, pitch, volume }) {
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
+    const run = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = rate;
+      utterance.pitch = pitch;
+      utterance.volume = volume;
 
-    // Выбираем голос на нужном языке (если доступен)
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice =
+        voices.find(v => v.lang === lang) ||
+        voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      utterance.onend = resolve;
+      utterance.onerror = resolve;
+
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    };
+
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
-    if (preferredVoice) utterance.voice = preferredVoice;
-
-    utterance.onend = resolve;
-    utterance.onerror = reject;
-
-    window.speechSynthesis.speak(utterance);
+    if (voices.length) {
+      run();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        run();
+      };
+      setTimeout(run, 250);
+    }
   });
 }

@@ -26,4 +26,10 @@ if (!existsSync(jsSrc) || !existsSync(wasmSrc)) {
 
 cpSync(jsSrc, join(dest, 'stockfish.js'));
 cpSync(wasmSrc, join(dest, 'stockfish.wasm'));
+
+const asmSrc = join(bin, 'stockfish-18-asm.js');
+if (existsSync(asmSrc)) {
+  cpSync(asmSrc, join(dest, 'stockfish-asm.js'));
+}
+
 console.log('[copy-stockfish] copied lite-single → public/stockfish/');
