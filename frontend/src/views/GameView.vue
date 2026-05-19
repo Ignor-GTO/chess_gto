@@ -13,11 +13,18 @@
           :fen="gameStore.fen"
           :player-color="gameStore.playerColor"
           :last-move="gameStore.lastMove"
-          :is-my-turn="gameStore.isMyTurn"
-          :disabled="gameStore.isGameOver"
+          :is-my-turn="gameStore.canMove"
+          :disabled="gameStore.isGameOver || gameStore.isWaitingForOpponent || !gameStore.isConnected"
           fluid
           @move="onMove"
         />
+
+        <p v-if="gameStore.isWaitingForOpponent" class="waiting-msg">
+          Ожидание подключения соперника…
+        </p>
+        <p v-else-if="!gameStore.isConnected" class="waiting-msg">
+          Подключение к серверу…
+        </p>
 
         <PlayerBar
           :name="authStore.user?.username"
@@ -72,13 +79,21 @@ const router = useRouter();
 const gameStore = useGameStore();
 const authStore = useAuthStore();
 
-onMounted(async () => {
-  const gameId = route.params.id;
+async function loadGame(gameId) {
+  gameStore.disconnect();
+  gameStore.reset();
+
   const { data } = await axios.get(`/api/games/${gameId}/`);
   const meId = authStore.user?.id;
   const color = data.white_player?.id === meId ? 'white' : 'black';
   gameStore.hydrateFromApi(data, color);
   gameStore.connect(gameId, color);
+}
+
+onMounted(() => loadGame(route.params.id));
+
+watch(() => route.params.id, (id) => {
+  if (id) loadGame(id);
 });
 
 onUnmounted(() => gameStore.disconnect());
@@ -148,6 +163,13 @@ function startNewGame() {
 .side-panel { min-width: 0; }
 
 .game-controls { display: flex; gap: 0.75rem; margin-top: 0.25rem; }
+
+.waiting-msg {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
 
 .btn-danger {
   padding: 0.5rem 1rem;

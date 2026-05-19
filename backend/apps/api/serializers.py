@@ -58,7 +58,8 @@ class MoveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Move
         fields = [
-            'move_number', 'uci', 'san', 'time_spent_ms', 'clock_ms',
+            'move_number', 'uci', 'san', 'fen_after',
+            'time_spent_ms', 'clock_ms',
             'eval_cp', 'classification',
         ]
 
@@ -89,6 +90,7 @@ class GameDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'white_player', 'black_player',
             'time_control', 'initial_time', 'increment',
+            'white_time_remaining', 'black_time_remaining',
             'status', 'result', 'result_reason',
             'pgn', 'current_fen',
             'white_rating_before', 'black_rating_before',

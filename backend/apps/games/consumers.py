@@ -4,36 +4,42 @@ GameConsumer — WebSocket обработчик игры.
 Поток:
   1. Клиент подключается: ws://host/ws/game/<game_id>/
   2. JWTAuthMiddleware аутентифицирует пользователя
-  3. receive() принимает ходы, валидирует через python-chess
-  4. Рассылает обновление обоим игрокам через channel group
+  3. На connect сервер шлёт текущее состояние (game_sync) клиенту.
+     Если оба игрока online — рассылает game_started всем.
+  4. receive() принимает ходы, валидирует через python-chess.
+  5. Рассылает обновление обоим игрокам через channel group.
 """
 import json
 import time
 import logging
+
 import chess
-import chess.pgn
+import redis
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.conf import settings
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
+def _redis_client():
+    """Прямой Redis-клиент для атомарных операций (SADD/SMEMBERS/SREM)."""
+    return redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
 class GameConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
-        """Подключение к WebSocket."""
         self.game_id = self.scope['url_route']['kwargs']['game_id']
         self.room_group_name = f'game_{self.game_id}'
         self.user = self.scope.get('user')
 
-        # Проверяем аутентификацию
         if not self.user or not self.user.is_authenticated:
             await self.close(code=4001)
             return
 
-        # Загружаем партию и проверяем, что пользователь — участник
         self.game = await self.get_game()
         if not self.game:
             await self.close(code=4004)
@@ -43,52 +49,48 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.close(code=4003)
             return
 
-        # Вступаем в группу каналов
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # Восстанавливаем доску из FEN
         self.board = chess.Board(self.game.current_fen)
 
-        # Уведомляем группу о подключении
         await self.channel_layer.group_send(self.room_group_name, {
             'type': 'player_connected',
             'user_id': str(self.user.id),
             'username': self.user.username,
         })
 
+        # Регистрируем подключение и решаем, активировать ли партию
         started = await self.register_connection()
+        snapshot = await self.build_sync_payload()
+
+        if snapshot is None:
+            logger.warning('Game %s disappeared during connect', self.game_id)
+            return
+
         if started:
+            # Партия только что стартовала (waiting → active) — рассылаем всем
             await self.channel_layer.group_send(self.room_group_name, {
                 'type': 'game_started',
-                'white_clock': int(self.game.white_time_remaining * 1000),
-                'black_clock': int(self.game.black_time_remaining * 1000),
-                'fen': self.game.current_fen,
+                **snapshot,
             })
-        elif self.game.status == 'active':
-            game = await self.refresh_game_state()
-            if game:
-                await self.send(json.dumps({
-                    'type': 'game_sync',
-                    'fen': game.current_fen,
-                    'white_clock': int(game.white_time_remaining * 1000),
-                    'black_clock': int(game.black_time_remaining * 1000),
-                }))
+        else:
+            # Просто отправляем текущее состояние ТОЛЬКО подключившемуся
+            await self.send(json.dumps({
+                'type': 'game_sync',
+                **snapshot,
+            }))
 
-        logger.info(f'User {self.user.username} connected to game {self.game_id}')
+        logger.info('User %s connected to game %s (started=%s)',
+                    self.user.username, self.game_id, started)
 
     async def disconnect(self, close_code):
-        """Отключение от WebSocket."""
         if hasattr(self, 'room_group_name'):
             await self.unregister_connection()
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
-        logger.info(f'User disconnected from game {self.game_id}, code={close_code}')
+        logger.info('User disconnected from game %s, code=%s', getattr(self, 'game_id', '?'), close_code)
 
     async def receive(self, text_data):
-        """
-        Получение сообщения от клиента.
-        Формат: {"type": "move", "uci": "e2e4", "timestamp": 1234567890}
-        """
         try:
             data = json.loads(text_data)
         except json.JSONDecodeError:
@@ -107,15 +109,25 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.handle_draw_accept()
         elif msg_type == 'draw_reject':
             await self.handle_draw_reject()
+        elif msg_type == 'sync':
+            snapshot = await self.build_sync_payload()
+            if snapshot is not None:
+                await self.send(json.dumps({'type': 'game_sync', **snapshot}))
         elif msg_type == 'ping':
-            # Для поддержки соединения
             await self.send(json.dumps({'type': 'pong'}))
 
     async def handle_move(self, data):
-        """
-        Обработка хода. Вся валидация на сервере через python-chess.
-        """
+        """Обработка хода. Вся валидация на сервере через python-chess."""
         await self.refresh_board_from_db()
+
+        # Запрещаем ход если соперника нет
+        if not self.game.black_player_id or not self.game.white_player_id:
+            await self.send_error('waiting_for_opponent')
+            return
+
+        if self.game.status == 'finished':
+            await self.send_error('game_finished')
+            return
 
         uci_move = data.get('uci', '')
         client_timestamp = data.get('timestamp', time.time() * 1000)
@@ -125,7 +137,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.send_error('not_your_turn')
             return
 
-        # 2. Парсим и валидируем ход
+        # 2. Парсим и валидируем
         try:
             move = chess.Move.from_uci(uci_move)
         except chess.InvalidMoveError:
@@ -133,30 +145,24 @@ class GameConsumer(AsyncWebsocketConsumer):
             return
 
         if move not in self.board.legal_moves:
-            # ЧИТЕРСТВО — невозможный ход
-            logger.warning(
-                f'CHEAT DETECTED: user={self.user.username}, '
-                f'game={self.game_id}, move={uci_move}'
-            )
+            logger.warning('CHEAT: user=%s game=%s move=%s', self.user.username, self.game_id, uci_move)
             await self.flag_cheating()
             await self.close(code=4008)
             return
 
-        # 3. Вычисляем SAN до применения хода
         san = self.board.san(move)
 
-        # 4. Lag compensation: вычисляем реальное время хода
+        # 3. Lag compensation
         server_timestamp = time.time() * 1000
         lag_ms = max(0, server_timestamp - client_timestamp)
-        # Ограничиваем компенсацию (не более 500мс)
         compensation_ms = min(lag_ms, 500)
 
-        # 5. Применяем ход
+        # 4. Применяем ход
         self.board.push(move)
         move_number = self.board.fullmove_number
-        is_white_move = not self.board.turn  # после push() turn меняется
+        is_white_move = not self.board.turn
 
-        # 6. Обновляем часы и сохраняем ход в БД
+        # 5. Сохраняем + часы (атомарно в транзакции)
         clock_data = await self.save_move_and_update_clock(
             uci=uci_move,
             san=san,
@@ -166,22 +172,20 @@ class GameConsumer(AsyncWebsocketConsumer):
             compensation_ms=compensation_ms,
         )
 
-        # 7. Проверяем конец партии
+        # 6. Конец партии?
         game_over = await self.check_game_over()
 
-        # 8. Рассылаем ход обоим игрокам
+        # 7. Рассылка
         move_payload = {
             'uci': uci_move,
             'san': san,
             'fen': self.board.fen(),
             'move_number': move_number,
+            'ply': len(self.board.move_stack),
             'white_clock': clock_data['white_clock'],
             'black_clock': clock_data['black_clock'],
             'game_over': game_over,
         }
-
-        # Прямой ответ инициатору (на случай проблем с group broadcast)
-        await self.send(json.dumps({'type': 'move', **move_payload}))
 
         await self.channel_layer.group_send(self.room_group_name, {
             'type': 'move_made',
@@ -189,7 +193,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         })
 
     async def handle_resign(self):
-        """Сдача партии."""
         is_white = await self.is_white_player()
         result = 'black_win' if is_white else 'white_win'
         await self.finish_game(result=result, reason='resign')
@@ -200,14 +203,12 @@ class GameConsumer(AsyncWebsocketConsumer):
         })
 
     async def handle_draw_offer(self):
-        """Предложение ничьей."""
         await self.channel_layer.group_send(self.room_group_name, {
             'type': 'draw_offered',
             'from_user': str(self.user.id),
         })
 
     async def handle_draw_accept(self):
-        """Принятие ничьей."""
         await self.finish_game(result='draw', reason='draw_agreement')
         await self.channel_layer.group_send(self.room_group_name, {
             'type': 'game_ended',
@@ -216,7 +217,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         })
 
     async def handle_draw_reject(self):
-        """Отклонение предложения ничьей."""
         await self.channel_layer.group_send(self.room_group_name, {
             'type': 'draw_rejected',
             'from_user': str(self.user.id),
@@ -225,8 +225,11 @@ class GameConsumer(AsyncWebsocketConsumer):
     # --- Channel layer event handlers (рассылка группе) ---
 
     async def move_made(self, event):
-        """Отправка хода всем в группе + синхронизация локальной доски."""
-        self.board = chess.Board(event['fen'])
+        """Получили ход через группу — синхронизируем локальную доску и отправляем клиенту."""
+        try:
+            self.board = chess.Board(event['fen'])
+        except Exception:
+            logger.exception('Invalid FEN in move_made: %s', event.get('fen'))
         payload = {k: v for k, v in event.items() if k != 'type'}
         await self.send(json.dumps({
             'type': 'move',
@@ -234,7 +237,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         }))
 
     async def game_ended(self, event):
-        """Уведомление об окончании партии."""
         await self.send(json.dumps({
             'type': 'game_over',
             'result': event['result'],
@@ -242,26 +244,23 @@ class GameConsumer(AsyncWebsocketConsumer):
         }))
 
     async def player_connected(self, event):
-        """Уведомление о подключении игрока."""
         await self.send(json.dumps({
             'type': 'player_connected',
             'username': event['username'],
         }))
 
     async def draw_offered(self, event):
-        """Уведомление о предложении ничьей."""
         await self.send(json.dumps({'type': 'draw_offer'}))
 
     async def draw_rejected(self, event):
         await self.send(json.dumps({'type': 'draw_rejected'}))
 
     async def game_started(self, event):
-        """Оба игрока подключены — партия началась."""
+        """Оба игрока подключены — партия началась (рассылка всем в группе)."""
+        payload = {k: v for k, v in event.items() if k != 'type'}
         await self.send(json.dumps({
             'type': 'game_started',
-            'white_clock': event['white_clock'],
-            'black_clock': event['black_clock'],
-            'fen': event['fen'],
+            **payload,
         }))
 
     # --- Вспомогательные методы ---
@@ -271,18 +270,42 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def refresh_board_from_db(self):
-        """Актуальная позиция из БД перед обработкой хода."""
         from apps.games.models import Game
         self.game = Game.objects.get(id=self.game_id)
         self.board = chess.Board(self.game.current_fen)
 
     @database_sync_to_async
-    def refresh_game_state(self):
+    def build_sync_payload(self):
+        """Полное актуальное состояние партии (FEN, часы, ходы, статус)."""
         from apps.games.models import Game
         try:
-            return Game.objects.get(id=self.game_id, status='active')
+            game = Game.objects.prefetch_related('moves').get(id=self.game_id)
         except Game.DoesNotExist:
             return None
+
+        moves = [
+            {
+                'uci': m.uci,
+                'san': m.san,
+                'fen': m.fen_after,
+                'move_number': m.move_number,
+            }
+            for m in game.moves.order_by('move_number')
+        ]
+
+        try:
+            ply = chess.Board(game.current_fen).ply()
+        except Exception:
+            ply = len(moves)
+
+        return {
+            'fen': game.current_fen,
+            'white_clock': int(game.white_time_remaining * 1000),
+            'black_clock': int(game.black_time_remaining * 1000),
+            'status': game.status,
+            'moves': moves,
+            'ply': ply,
+        }
 
     @database_sync_to_async
     def get_game(self):
@@ -304,7 +327,6 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def is_my_turn(self):
-        """Проверяет, чья очередь ходить."""
         white_to_move = self.board.turn == chess.WHITE
         is_white = self.game.white_player_id == self.user.id
         return (white_to_move and is_white) or (not white_to_move and not is_white)
@@ -316,68 +338,59 @@ class GameConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def save_move_and_update_clock(self, uci, san, fen_after, move_number,
                                     is_white_move, compensation_ms):
-        """
-        Сохраняет ход в БД и обновляет шахматные часы.
-        Lag compensation: вычитаем задержку из потраченного времени.
-        """
         from apps.games.models import Game, Move
-        from django.utils import timezone
+        from django.db import transaction
 
         now = timezone.now()
-        game = Game.objects.select_for_update().get(id=self.game_id)
 
-        # Вычисляем время, потраченное на ход
-        reference_time = game.last_move_at or game.started_at
-        if reference_time:
+        with transaction.atomic():
+            game = Game.objects.select_for_update().get(id=self.game_id)
+
+            reference_time = game.last_move_at or game.started_at or now
             elapsed_ms = (now - reference_time).total_seconds() * 1000
             actual_spent_ms = max(0, elapsed_ms - compensation_ms)
-        else:
-            actual_spent_ms = 0
 
-        if game.status != 'active':
-            game.status = 'active'
-            if not game.started_at:
-                game.started_at = now
+            if game.status != 'active':
+                game.status = 'active'
+                if not game.started_at:
+                    game.started_at = now
 
-        # Обновляем часы
-        if is_white_move:
-            game.white_time_remaining = max(
-                0, game.white_time_remaining - actual_spent_ms / 1000
+            if is_white_move:
+                game.white_time_remaining = max(
+                    0, game.white_time_remaining - actual_spent_ms / 1000
+                )
+                game.white_time_remaining += game.increment
+                clock_ms = int(game.white_time_remaining * 1000)
+            else:
+                game.black_time_remaining = max(
+                    0, game.black_time_remaining - actual_spent_ms / 1000
+                )
+                game.black_time_remaining += game.increment
+                clock_ms = int(game.black_time_remaining * 1000)
+
+            game.current_fen = fen_after
+            game.last_move_at = now
+
+            if not game.pgn:
+                game.pgn = ''
+            game.pgn += f' {san}'
+
+            game.save(update_fields=[
+                'status', 'started_at', 'current_fen', 'last_move_at',
+                'white_time_remaining', 'black_time_remaining', 'pgn'
+            ])
+
+            ply = len(self.board.move_stack)
+            Move.objects.create(
+                game_id=self.game_id,
+                player=self.user,
+                move_number=ply,
+                uci=uci,
+                san=san,
+                fen_after=fen_after,
+                time_spent_ms=int(actual_spent_ms),
+                clock_ms=clock_ms,
             )
-            game.white_time_remaining += game.increment
-            clock_ms = int(game.white_time_remaining * 1000)
-        else:
-            game.black_time_remaining = max(
-                0, game.black_time_remaining - actual_spent_ms / 1000
-            )
-            game.black_time_remaining += game.increment
-            clock_ms = int(game.black_time_remaining * 1000)
-
-        game.current_fen = fen_after
-        game.last_move_at = now
-
-        # Обновляем PGN
-        if not game.pgn:
-            game.pgn = ''
-        game.pgn += f' {san}'
-
-        game.save(update_fields=[
-            'status', 'started_at', 'current_fen', 'last_move_at',
-            'white_time_remaining', 'black_time_remaining', 'pgn'
-        ])
-
-        # Сохраняем ход (ply = количество полуходов)
-        ply = len(self.board.move_stack)
-        Move.objects.create(
-            game_id=self.game_id,
-            player=self.user,
-            move_number=ply,
-            uci=uci,
-            san=san,
-            fen_after=fen_after,
-            time_spent_ms=int(actual_spent_ms),
-            clock_ms=clock_ms,
-        )
 
         return {
             'white_clock': int(game.white_time_remaining * 1000),
@@ -386,8 +399,6 @@ class GameConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def check_game_over(self):
-        """Проверяет конец партии и запускает расчёт рейтинга."""
-        from apps.games.models import Game
         from apps.games.tasks import calculate_glicko2_ratings
 
         if self.board.is_checkmate():
@@ -425,9 +436,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         return None
 
     def _finish_game_sync(self, result, reason):
-        """Синхронное завершение партии (вызывается внутри database_sync_to_async)."""
         from apps.games.models import Game
-        from django.utils import timezone
         Game.objects.filter(id=self.game_id).update(
             status='finished',
             result=result,
@@ -436,33 +445,38 @@ class GameConsumer(AsyncWebsocketConsumer):
         )
 
     async def finish_game(self, result, reason):
-        """Асинхронная обёртка для завершения партии."""
         await database_sync_to_async(self._finish_game_sync)(result, reason)
         from apps.games.tasks import calculate_glicko2_ratings
         calculate_glicko2_ratings.delay(str(self.game_id))
 
     @database_sync_to_async
     def register_connection(self):
-        """Регистрирует WS-подключение; стартует партию когда оба игрока онлайн."""
-        from django.core.cache import cache
+        """
+        Атомарно регистрирует подключение через Redis SADD.
+        Возвращает True ТОЛЬКО при переходе waiting → active.
+        """
         from apps.games.models import Game
-        from django.utils import timezone
         from django.db import transaction
 
         key = f'game_{self.game_id}_connected'
-        connected = set(cache.get(key) or [])
-        connected.add(str(self.user.id))
-        cache.set(key, list(connected), timeout=3600)
+
+        try:
+            r = _redis_client()
+            r.sadd(key, str(self.user.id))
+            r.expire(key, 3600)
+            members = set(r.smembers(key))
+        except Exception as e:
+            logger.warning('Redis SADD failed, falling back to single-user: %s', e)
+            members = {str(self.user.id)}
 
         with transaction.atomic():
             game = Game.objects.select_for_update().get(id=self.game_id)
             player_ids = {str(game.white_player_id), str(game.black_player_id)}
             player_ids.discard('None')
 
-            if len(connected & player_ids) < 2 or len(player_ids) < 2:
-                return False
+            both_online = (len(player_ids) >= 2) and (len(members & player_ids) >= 2)
 
-            if game.status == 'waiting':
+            if both_online and game.status == 'waiting':
                 now = timezone.now()
                 game.status = 'active'
                 game.started_at = now
@@ -471,19 +485,21 @@ class GameConsumer(AsyncWebsocketConsumer):
                 self.game = game
                 return True
 
-        return False
+            # Если статус уже active, ничего не меняем
+            self.game = game
+            return False
 
     @database_sync_to_async
     def unregister_connection(self):
-        from django.core.cache import cache
-        key = f'game_{self.game_id}_connected'
-        connected = set(cache.get(key) or [])
-        connected.discard(str(self.user.id))
-        cache.set(key, list(connected), timeout=3600)
+        try:
+            r = _redis_client()
+            key = f'game_{self.game_id}_connected'
+            r.srem(key, str(self.user.id))
+        except Exception as e:
+            logger.warning('Redis SREM failed: %s', e)
 
     @database_sync_to_async
     def flag_cheating(self):
-        """Помечает партию как читерскую."""
         from apps.games.models import Game
         Game.objects.filter(id=self.game_id).update(
             status='cheating',
