@@ -117,6 +117,9 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    networks:
+      - default
+      - dokploy-network
 
   # ── Nginx Reverse Proxy ───────────────────────────────────
   # Не биндим 80/443 на хост — Traefik Dokploy уже слушает эти порты.

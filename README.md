@@ -60,8 +60,12 @@ npm run dev
 
 1. Создайте Compose-приложение из репозитория, путь `./docker-compose.yml`.
 2. Заполните `.env` по `.env.example`.
-3. В **Domains** добавьте домен `chess.gto-team.uz` → сервис **nginx**, порт **80**.
-4. Deploy — SSL и маршрутизацию делает Traefik Dokploy, не биндим 80/443 в compose.
+3. В **Domains** добавьте домен `chess.gto-team.uz`:
+   - **Рекомендуется:** сервис **nginx**, порт **80**
+   - **Или:** сервис **frontend**, порт **80** (API проксируется в nginx-spa.conf)
+4. Deploy — SSL делает Traefik Dokploy.
+
+> **405 на `/api/auth/token/`** — домен смотрит на frontend без прокси API. Пересоберите frontend или переключите домен на сервис **nginx**.
 
 ## Graphify (база знаний)
 
