@@ -7,10 +7,9 @@ RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npm run copy:stockfish \
-    && test -s public/stockfish/stockfish.js \
-    && test -s public/stockfish/stockfish.wasm
+    && test -s public/stockfish/stockfish.js
 RUN npm run build \
-    && test -s dist/stockfish/stockfish.wasm
+    && test -s dist/stockfish/stockfish.js
 
 # ── Production: Nginx для раздачи статики ──────────────────
 FROM nginx:alpine

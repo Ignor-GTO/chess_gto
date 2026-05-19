@@ -12,7 +12,7 @@
  */
 
 // Stockfish.js v18 — вложенный Worker (importScripts не экспортирует Stockfish)
-const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#/stockfish/stockfish.wasm,worker';
+const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#,worker';
 
 let stockfish = null;
 let resolveEval = null;

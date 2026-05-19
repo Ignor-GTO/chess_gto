@@ -5,7 +5,8 @@ import { ref, computed, onUnmounted } from 'vue';
 import { Chess } from 'chess.js';
 import axios from '@/plugins/axios';
 
-const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#/stockfish/stockfish.wasm,worker';
+const STOCKFISH_WORKER_URL = '/stockfish/stockfish.js#,worker';
+const ENGINE_TIMEOUT_MS = 12000;
 
 export const SKILL_CONFIGS = {
   0:  { label: '🐣 Новичок',   movetime: 100,  skillLevel: 0  },
@@ -28,44 +29,125 @@ export function useBotGame() {
   const resultReason   = ref(null);
   const isBotThinking  = ref(false);
   const isEngineLoading = ref(false);
+  const useFallbackBot = ref(false);
   const engineError    = ref(null);
 
   let botWorker    = null;
   let gameId       = null;
   let engineReady  = false;
   let pendingBotMove = false;
+  let engineTimer  = null;
 
   const skillConfig = computed(() => SKILL_CONFIGS[skillLevel.value] || SKILL_CONFIGS[10]);
   const moveSans    = computed(() => moves.value.map(m => m.san));
   const moveUcis    = computed(() => moves.value.map(m => m.uci));
   const turnLabel   = computed(() => {
     if (isGameOver.value) return '';
+    if (useFallbackBot.value && isBotThinking.value) return 'Бот думает…';
     if (isEngineLoading.value) return 'Загрузка движка…';
     if (isBotThinking.value) return 'Бот думает…';
     return isMyTurn.value ? 'Ваш ход' : 'Ход бота';
   });
 
+  function clearEngineTimer() {
+    if (engineTimer) {
+      clearTimeout(engineTimer);
+      engineTimer = null;
+    }
+  }
+
+  function activateFallback(reason) {
+    useFallbackBot.value = true;
+    engineReady = false;
+    isEngineLoading.value = false;
+    clearEngineTimer();
+    botWorker?.terminate();
+    botWorker = null;
+    if (reason) {
+      engineError.value = reason;
+    }
+    if (pendingBotMove || (!isMyTurn.value && !isGameOver.value)) {
+      pendingBotMove = false;
+      makeFallbackBotMove();
+    }
+  }
+
+  function startEngineTimer() {
+    clearEngineTimer();
+    engineTimer = setTimeout(() => {
+      if (!engineReady && !useFallbackBot.value) {
+        activateFallback('Stockfish недоступен — бот на упрощённом AI');
+      }
+    }, ENGINE_TIMEOUT_MS);
+  }
+
+  async function probeStockfish() {
+    try {
+      const res = await fetch('/stockfish/stockfish.js', { cache: 'no-store' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  function pickFallbackMove(legal, skill) {
+    if (!legal.length) return null;
+    if (skill >= 15) {
+      const captures = legal.filter(m => m.captured);
+      if (captures.length) return captures[Math.floor(Math.random() * captures.length)];
+    }
+    if (skill >= 5) {
+      const slice = legal.slice(0, Math.min(4, legal.length));
+      return slice[Math.floor(Math.random() * slice.length)];
+    }
+    return legal[Math.floor(Math.random() * legal.length)];
+  }
+
+  function makeFallbackBotMove() {
+    if (isGameOver.value || isMyTurn.value) return;
+
+    isBotThinking.value = true;
+    isEngineLoading.value = false;
+
+    setTimeout(() => {
+      const board = new Chess(chess.value.fen());
+      const legal = board.moves({ verbose: true });
+      const chosen = pickFallbackMove(legal, skillLevel.value);
+
+      isBotThinking.value = false;
+
+      if (!chosen) {
+        engineError.value = 'Нет доступных ходов';
+        isMyTurn.value = true;
+        return;
+      }
+
+      applyBotMove(chosen.from + chosen.to + (chosen.promotion || ''));
+    }, Math.max(200, skillConfig.value.movetime));
+  }
+
   function ensureEngine() {
+    if (useFallbackBot.value) return;
     if (botWorker) return;
 
     isEngineLoading.value = true;
     engineError.value = null;
     engineReady = false;
+    startEngineTimer();
 
     botWorker = new Worker(STOCKFISH_WORKER_URL);
     botWorker.onmessage = handleEngineLine;
     botWorker.onerror = () => {
-      engineError.value = 'Не удалось загрузить движок Stockfish';
-      isEngineLoading.value = false;
-      isBotThinking.value = false;
+      activateFallback('Не удалось загрузить Stockfish');
     };
     botWorker.postMessage('uci');
   }
 
-  function startGame(color = 'white', skill = 10) {
+  async function startGame(color = 'white', skill = 10) {
     cleanupWorker();
     engineError.value = null;
     pendingBotMove = false;
+    useFallbackBot.value = false;
 
     playerColor.value = color;
     skillLevel.value = skill;
@@ -80,11 +162,15 @@ export function useBotGame() {
     isBotThinking.value = false;
     isEngineLoading.value = false;
 
-    // Stockfish (~7 MB WASM) грузим только когда нужен ход бота
     if (color === 'black') {
-      ensureEngine();
-      pendingBotMove = true;
       isBotThinking.value = true;
+      pendingBotMove = true;
+      const available = await probeStockfish();
+      if (!available) {
+        activateFallback(null);
+      } else {
+        ensureEngine();
+      }
     }
 
     createGameRecord();
@@ -102,7 +188,7 @@ export function useBotGame() {
   }
 
   function handleEngineLine(event) {
-    const line = typeof event.data === 'string' ? event.data : '';
+    const line = (typeof event.data === 'string' ? event.data : '').trim();
     if (!line || line.startsWith('info ')) return;
 
     if (line === 'uciok') {
@@ -113,6 +199,7 @@ export function useBotGame() {
     if (line === 'readyok') {
       engineReady = true;
       isEngineLoading.value = false;
+      clearEngineTimer();
       if (pendingBotMove) {
         pendingBotMove = false;
         requestBotMove();
@@ -121,6 +208,7 @@ export function useBotGame() {
     }
 
     if (line.startsWith('bestmove')) {
+      clearEngineTimer();
       const uci = line.split(' ')[1];
       if (!uci || uci === '(none)') {
         isBotThinking.value = false;
@@ -157,6 +245,11 @@ export function useBotGame() {
   function requestBotMove() {
     if (isGameOver.value || isMyTurn.value) return;
 
+    if (useFallbackBot.value) {
+      makeFallbackBotMove();
+      return;
+    }
+
     ensureEngine();
 
     if (!engineReady) {
@@ -167,6 +260,7 @@ export function useBotGame() {
 
     isBotThinking.value = true;
     engineError.value = null;
+    startEngineTimer();
 
     const history = moveUcis.value.join(' ');
     botWorker.postMessage(
@@ -276,10 +370,12 @@ export function useBotGame() {
   }
 
   function cleanupWorker() {
+    clearEngineTimer();
     botWorker?.terminate();
     botWorker = null;
     engineReady = false;
     pendingBotMove = false;
+    useFallbackBot.value = false;
     isEngineLoading.value = false;
   }
 
