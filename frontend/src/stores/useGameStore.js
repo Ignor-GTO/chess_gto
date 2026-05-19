@@ -38,6 +38,8 @@ export const useGameStore = defineStore('game', () => {
 
   let ws = null;
   let pendingMove = false;
+  let clockTurn = null;
+  let moveAckTimer = null;
 
   const myColor = computed(() => playerColor.value);
   const isGameOver = computed(() => status.value === 'finished');
@@ -119,6 +121,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function disconnect() {
+    clearMoveAckFallback();
     ws?.close(1000);
     stopClock();
   }
@@ -143,8 +146,24 @@ export const useGameStore = defineStore('game', () => {
       (turn === 'b' && playerColor.value === 'black')
     );
 
-    if (status.value === 'active' && !isGameOver.value) {
+    if (status.value === 'active' && !isGameOver.value && turn !== clockTurn) {
       startClock(turn);
+    }
+  }
+
+  function scheduleMoveAckFallback() {
+    if (moveAckTimer) clearTimeout(moveAckTimer);
+    moveAckTimer = setTimeout(async () => {
+      if (!pendingMove) return;
+      pendingMove = false;
+      await resyncFromServer();
+    }, 1500);
+  }
+
+  function clearMoveAckFallback() {
+    if (moveAckTimer) {
+      clearTimeout(moveAckTimer);
+      moveAckTimer = null;
     }
   }
 
@@ -172,10 +191,12 @@ export const useGameStore = defineStore('game', () => {
       uci,
       timestamp: Date.now(),
     }));
+    scheduleMoveAckFallback();
     return true;
   }
 
   function applyMovePayload(data) {
+    clearMoveAckFallback();
     pendingMove = false;
     if (status.value !== 'finished') status.value = 'active';
 
@@ -230,10 +251,17 @@ export const useGameStore = defineStore('game', () => {
         break;
 
       case 'game_started':
+        if (moves.value.length > 0) break;
+        status.value = 'active';
+        if (data.fen) fen.value = data.fen;
+        syncClocksAndTurn(data);
+        break;
+
       case 'game_sync':
         status.value = 'active';
         if (data.fen) fen.value = data.fen;
         syncClocksAndTurn(data);
+        resyncFromServer();
         break;
 
       case 'player_connected':
@@ -252,10 +280,9 @@ export const useGameStore = defineStore('game', () => {
 
       case 'error':
         console.error('[Game] Ошибка сервера:', data.code);
+        clearMoveAckFallback();
         pendingMove = false;
-        if (data.code === 'not_your_turn' || data.code === 'invalid_move_format') {
-          resyncFromServer();
-        }
+        resyncFromServer();
         break;
     }
   }
@@ -269,6 +296,7 @@ export const useGameStore = defineStore('game', () => {
 
   function startClock(turn) {
     stopClock();
+    clockTurn = turn;
     clockRunning.value = true;
     const tickMs = 100;
 
@@ -287,6 +315,7 @@ export const useGameStore = defineStore('game', () => {
 
   function stopClock() {
     clockRunning.value = false;
+    clockTurn = null;
     if (clockInterval) {
       clearInterval(clockInterval);
       clockInterval = null;

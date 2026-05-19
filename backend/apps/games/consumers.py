@@ -170,8 +170,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         game_over = await self.check_game_over()
 
         # 8. Рассылаем ход обоим игрокам
-        await self.channel_layer.group_send(self.room_group_name, {
-            'type': 'move_made',
+        move_payload = {
             'uci': uci_move,
             'san': san,
             'fen': self.board.fen(),
@@ -179,6 +178,14 @@ class GameConsumer(AsyncWebsocketConsumer):
             'white_clock': clock_data['white_clock'],
             'black_clock': clock_data['black_clock'],
             'game_over': game_over,
+        }
+
+        # Прямой ответ инициатору (на случай проблем с group broadcast)
+        await self.send(json.dumps({'type': 'move', **move_payload}))
+
+        await self.channel_layer.group_send(self.room_group_name, {
+            'type': 'move_made',
+            **move_payload,
         })
 
     async def handle_resign(self):
@@ -320,14 +327,17 @@ class GameConsumer(AsyncWebsocketConsumer):
         game = Game.objects.select_for_update().get(id=self.game_id)
 
         # Вычисляем время, потраченное на ход
-        if game.last_move_at and game.status == 'active':
-            elapsed_ms = (now - game.last_move_at).total_seconds() * 1000
-            # Lag compensation: из реального времени вычитаем сетевую задержку
+        reference_time = game.last_move_at or game.started_at
+        if reference_time:
+            elapsed_ms = (now - reference_time).total_seconds() * 1000
             actual_spent_ms = max(0, elapsed_ms - compensation_ms)
         else:
             actual_spent_ms = 0
+
+        if game.status != 'active':
             game.status = 'active'
-            game.started_at = now
+            if not game.started_at:
+                game.started_at = now
 
         # Обновляем часы
         if is_white_move:
@@ -437,26 +447,29 @@ class GameConsumer(AsyncWebsocketConsumer):
         from django.core.cache import cache
         from apps.games.models import Game
         from django.utils import timezone
+        from django.db import transaction
 
         key = f'game_{self.game_id}_connected'
         connected = set(cache.get(key) or [])
         connected.add(str(self.user.id))
         cache.set(key, list(connected), timeout=3600)
 
-        game = Game.objects.get(id=self.game_id)
-        player_ids = {str(game.white_player_id), str(game.black_player_id)}
-        player_ids.discard('None')
+        with transaction.atomic():
+            game = Game.objects.select_for_update().get(id=self.game_id)
+            player_ids = {str(game.white_player_id), str(game.black_player_id)}
+            player_ids.discard('None')
 
-        if len(connected & player_ids) < 2 or len(player_ids) < 2:
-            return False
+            if len(connected & player_ids) < 2 or len(player_ids) < 2:
+                return False
 
-        if game.status == 'waiting':
-            game.status = 'active'
-            game.started_at = timezone.now()
-            game.last_move_at = timezone.now()
-            game.save(update_fields=['status', 'started_at', 'last_move_at'])
-            self.game = game
-            return True
+            if game.status == 'waiting':
+                now = timezone.now()
+                game.status = 'active'
+                game.started_at = now
+                game.last_move_at = now
+                game.save(update_fields=['status', 'started_at', 'last_move_at'])
+                self.game = game
+                return True
 
         return False
 
