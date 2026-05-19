@@ -9,11 +9,14 @@
     <div v-if="authStore.isAuthenticated" class="nav-links">
       <router-link to="/lobby"   class="nav-link">{{ $t('nav.play') }}</router-link>
       <router-link to="/profile" class="nav-link">{{ $t('nav.profile') }}</router-link>
+      <router-link v-if="authStore.isStaff" to="/admin" class="nav-link admin-link">
+        ⚙️ {{ $t('nav.admin') }}
+      </router-link>
     </div>
 
-    <!-- Правая часть: язык + пользователь -->
+    <!-- Правая часть: тема + язык + пользователь -->
     <div class="nav-right">
-      <!-- Переключатель языка -->
+      <ThemeSwitcher />
       <div class="lang-switcher">
         <button
           v-for="lang in langs"
@@ -36,6 +39,14 @@
         <div v-if="menuOpen" class="dropdown" @click.stop>
           <router-link to="/profile" class="dropdown-item" @click="menuOpen = false">
             👤 {{ $t('nav.profile') }}
+          </router-link>
+          <router-link
+            v-if="authStore.isStaff"
+            to="/admin"
+            class="dropdown-item"
+            @click="menuOpen = false"
+          >
+            ⚙️ {{ $t('nav.admin') }}
           </router-link>
           <button @click="logout" class="dropdown-item danger">
             🚪 {{ $t('nav.logout') }}
@@ -64,6 +75,9 @@
       <template v-if="authStore.isAuthenticated">
         <router-link to="/lobby"   class="mobile-link"><span>♟</span>{{ $t('nav.play') }}</router-link>
         <router-link to="/profile" class="mobile-link"><span>👤</span>{{ $t('nav.profile') }}</router-link>
+        <router-link v-if="authStore.isStaff" to="/admin" class="mobile-link">
+          <span>⚙️</span>{{ $t('nav.admin') }}
+        </router-link>
       </template>
       <router-link
         v-else-if="route.path === '/login'"
@@ -92,6 +106,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { setLanguage } from '@/plugins/i18n';
+import ThemeSwitcher from '@/components/ui/ThemeSwitcher.vue';
 
 const route     = useRoute();
 const router    = useRouter();
@@ -131,7 +146,7 @@ async function logout() {
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1.5rem;
-  background: rgba(15, 15, 26, 0.92);
+  background: var(--color-nav-bg);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
 }
@@ -155,6 +170,8 @@ async function logout() {
   text-decoration: none;
 }
 .nav-link:hover, .nav-link.router-link-active { color: var(--color-text); }
+.admin-link { color: var(--color-warning) !important; }
+.admin-link.router-link-active { color: var(--color-accent) !important; }
 
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
 
@@ -236,7 +253,7 @@ async function logout() {
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: rgba(15,15,26,0.95);
+  background: var(--color-nav-bg);
   border-top: 1px solid var(--color-border);
   padding: 0.5rem;
   justify-content: space-around;

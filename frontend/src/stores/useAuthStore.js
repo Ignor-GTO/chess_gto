@@ -16,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const error        = ref(null);
 
   const isAuthenticated = computed(() => !!accessToken.value);
+  const isStaff = computed(() => !!user.value?.is_staff);
 
   // ─── Авторизация ──────────────────────────────────────────────────────────
 
@@ -102,7 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     accessToken, refreshToken, user, loading, error,
-    isAuthenticated,
+    isAuthenticated, isStaff,
     login, register, logout, refreshAccessToken, fetchUser,
   };
 });

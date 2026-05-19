@@ -45,10 +45,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'rating', 'rating_deviation', 'rating_volatility',
             'games_played', 'games_won', 'games_lost', 'games_drawn',
             'win_rate', 'preferred_language', 'is_online', 'last_seen',
+            'is_staff',
         ]
         read_only_fields = [
             'rating', 'rating_deviation', 'rating_volatility',
             'games_played', 'games_won', 'games_lost', 'games_drawn',
+            'is_staff',
         ]
 
 
