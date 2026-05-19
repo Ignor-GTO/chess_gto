@@ -1,7 +1,7 @@
 <template>
   <div
     class="chess-board-wrapper"
-    :class="{ flipped: isFlipped }"
+    :class="{ flipped: isFlipped, fluid }"
     ref="boardRef"
   >
     <div class="coords-bottom">
@@ -89,6 +89,8 @@ const props = defineProps({
   lastMove:    { type: Object, default: null },
   isMyTurn:    { type: Boolean, default: false },
   disabled:    { type: Boolean, default: false },
+  /** Вписать доску в ширину родителя (для анализа и боковой панели) */
+  fluid:       { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['move']);
@@ -253,12 +255,18 @@ function confirmPromotion(piece) {
 <style scoped>
 .chess-board-wrapper {
   position: relative;
-  display: inline-block;
+  display: block;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
   width: min(90vw, 90vh, 560px);
+  max-width: 100%;
   aspect-ratio: 1;
+}
+
+.chess-board-wrapper.fluid {
+  width: 100%;
+  max-width: 100%;
 }
 
 .board-grid {
@@ -326,8 +334,9 @@ function confirmPromotion(piece) {
 }
 .coords-left {
   position: absolute;
-  left: -16px;
+  left: 0;
   top: 0;
+  transform: translateX(calc(-100% - 2px));
   display: flex;
   flex-direction: column;
   justify-content: space-around;

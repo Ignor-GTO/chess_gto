@@ -20,6 +20,7 @@
           :last-move="lastMove"
           :is-my-turn="isMyTurn && !isBotThinking"
           :disabled="isGameOver || isBotThinking"
+          fluid
           @move="onPlayerMove"
         />
 
@@ -98,7 +99,10 @@ function onPlayerMove({ from, to, promotion }) {
 }
 
 function goToAnalysis() {
-  router.push({ path: '/analysis/bot', query: { moves: moveUcis.value.join(',') } });
+  router.push({
+    path: '/analysis/bot',
+    query: { moves: moveUcis.value.join(','), color: playerColor.value },
+  });
 }
 
 function newGame() {

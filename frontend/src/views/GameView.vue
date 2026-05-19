@@ -15,6 +15,7 @@
           :last-move="gameStore.lastMove"
           :is-my-turn="gameStore.isMyTurn"
           :disabled="gameStore.isGameOver"
+          fluid
           @move="onMove"
         />
 
